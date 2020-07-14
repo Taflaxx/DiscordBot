@@ -34,17 +34,17 @@ class ReminderManager(commands.Cog):
     def cog_unload(self):
         self.check_reminders.cancel()
 
-    @commands.group(aliases=["rm", "r", "remind"])
-    async def reminder(self, ctx):
+    @commands.group(aliases=["rm", "remindme"])
+    async def remind_me(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send("Invalid remind command.")
 
-    @reminder.command(aliases=["a"])
-    async def add(self, ctx, hours, minutes, message):
+    @remind_me.command(aliases=["in"])
+    async def add_in(self, ctx, hours, minutes, message):
         time = datetime.datetime.now() + datetime.timedelta(hours=int(hours), minutes=int(minutes))
         self.reminders.append(Reminder(ctx, time, message))
 
-    @reminder.command(aliases=["l", "ls"])
+    @remind_me.command(aliases=["l", "ls"])
     async def list(self, ctx):
         message = ""
         for reminder in self.reminders:
