@@ -71,6 +71,7 @@ class Owner(commands.Cog):
         if guild:
             await guild.leave()
             print(f"Left guild {guild.name}")
+            # Don't try to send leave message if we left that guild
             if not ctx.guild.id == guild.id:
                 await ctx.send(f"**`SUCCESS:`** Left {guild.name}")
         else:
