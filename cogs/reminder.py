@@ -55,6 +55,19 @@ class ReminderManager(commands.Cog):
         else:
             await ctx.send("List of reminders:" + message)
 
+    @remind_me.command()
+    async def clear(self, ctx):
+        counter = 0
+        for reminder in self.reminders:
+            if reminder.ctx.author == ctx.author:
+                self.reminders.remove(reminder)
+                print(f"Removed reminder: {str(reminder)}")
+                counter += 1
+        if counter == 0:
+            await ctx.send("Currently no reminders scheduled")
+        else:
+            await ctx.send(f"Removed {counter} reminders")
+
     # Checks all reminders every 5 seconds
     @tasks.loop(seconds=5.0)
     async def check_reminders(self):
