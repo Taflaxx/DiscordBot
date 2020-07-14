@@ -41,7 +41,7 @@ class ReminderManager(commands.Cog):
     async def remind_me(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send_help("remindme")
-            print(f"Unknown command \"{ctx.message.content}\" by {ctx.author}.Sent help page")
+            print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}.Sent help page")
 
     @remind_me.command(name="in", help="Add a reminder in X time")
     async def add_in(self, ctx, hours, minutes, message=""):
