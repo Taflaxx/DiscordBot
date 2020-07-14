@@ -44,15 +44,16 @@ class ReminderManager(commands.Cog):
         time = datetime.datetime.now() + datetime.timedelta(hours=int(hours), minutes=int(minutes))
         self.reminders.append(Reminder(ctx, time, message))
 
-    @reminder.command(aliases=["l","ls"])
+    @reminder.command(aliases=["l", "ls"])
     async def list(self, ctx):
-        if not self.reminders:
+        message = ""
+        for reminder in self.reminders:
+            if reminder.ctx.author == ctx.author:
+                message += f"\n{str(reminder)}"
+        if message == "":
             await ctx.send("Currently no reminders scheduled")
         else:
-            message = "List of reminders:"
-            for reminder in self.reminders:
-                message += f"\n{str(reminder)}"
-            await ctx.send(message)
+            await ctx.send("List of reminders:" + message)
 
     # Checks all reminders every 5 seconds
     @tasks.loop(seconds=5.0)
