@@ -3,7 +3,7 @@ import datetime
 
 
 class Reminder:
-    def __init__(self,ctx, time, message):
+    def __init__(self, ctx, time, message):
         self.ctx = ctx
         self.time = time.replace(microsecond=0)
         self.message = message
@@ -15,7 +15,10 @@ class Reminder:
         return False
 
     def reminder_message(self):
-        return f"{self.ctx.author.mention} Reminder: {self.message}"
+        if self.message == "":
+            return f"{self.ctx.author.mention} Reminder!"
+        else:
+            return f"{self.ctx.author.mention} Reminder: {self.message}"
 
     async def notify(self):
         await self.ctx.send(self.reminder_message())
@@ -34,17 +37,18 @@ class ReminderManager(commands.Cog):
     def cog_unload(self):
         self.check_reminders.cancel()
 
-    @commands.group(aliases=["rm", "remindme"])
+    @commands.group(name="remindme", aliases=["rm"], help="Reminds you of stuff")
     async def remind_me(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send("Invalid remind command.")
+            await ctx.send_help("remindme")
+            print(f"Unknown command \"{ctx.message.content}\" by {ctx.author}.Sent help page")
 
-    @remind_me.command(aliases=["in"])
-    async def add_in(self, ctx, hours, minutes, message):
+    @remind_me.command(name="in", help="Add a reminder in X time")
+    async def add_in(self, ctx, hours, minutes, message=""):
         time = datetime.datetime.now() + datetime.timedelta(hours=int(hours), minutes=int(minutes))
         self.reminders.append(Reminder(ctx, time, message))
 
-    @remind_me.command(aliases=["l", "ls"])
+    @remind_me.command(name="list", aliases=["l", "ls"], help="List all of your reminders")
     async def list(self, ctx):
         message = ""
         for reminder in self.reminders:
@@ -55,7 +59,7 @@ class ReminderManager(commands.Cog):
         else:
             await ctx.send("List of reminders:" + message)
 
-    @remind_me.command()
+    @remind_me.command(name="clear", help="Removes all of your reminders")
     async def clear(self, ctx):
         counter = 0
         for reminder in self.reminders:
