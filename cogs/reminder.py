@@ -45,7 +45,6 @@ class ReminderManager(commands.Cog):
 
     @remind_me.command(name="in", help="Add a reminder in X time")
     async def add_in(self, ctx, *args):
-        print(args)
         hours, minutes, seconds = 0, 0, 0
         message = ""
         for arg in args:
@@ -56,7 +55,7 @@ class ReminderManager(commands.Cog):
             elif re.match("^\d+s$", arg):
                 seconds += int(arg[:-1])
             else:
-                message += "" + arg
+                message += arg + " "
         time = datetime.datetime.now() + datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
         self.reminders.append(Reminder(ctx, time, message))
         await ctx.send(f"**`SUCCESS:`** I will remind you at {time.replace(microsecond=0)}")
