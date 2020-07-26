@@ -1,6 +1,6 @@
 from discord.ext import commands, tasks
 import datetime
-
+import re
 
 class Reminder:
     def __init__(self, ctx, time, message):
@@ -44,8 +44,20 @@ class ReminderManager(commands.Cog):
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}.Sent help page")
 
     @remind_me.command(name="in", help="Add a reminder in X time")
-    async def add_in(self, ctx, hours, minutes, message=""):
-        time = datetime.datetime.now() + datetime.timedelta(hours=int(hours), minutes=int(minutes))
+    async def add_in(self, ctx, *args):
+        print(args)
+        hours, minutes, seconds = 0, 0, 0
+        message = ""
+        for arg in args:
+            if re.match("^\d+h$", arg):
+                hours += int(arg[:-1])
+            elif re.match("^\d+m$", arg):
+                minutes += int(arg[:-1])
+            elif re.match("^\d+s$", arg):
+                seconds += int(arg[:-1])
+            else:
+                message += "" + arg
+        time = datetime.datetime.now() + datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
         self.reminders.append(Reminder(ctx, time, message))
         await ctx.send(f"**`SUCCESS:`** I will remind you at {time.replace(microsecond=0)}")
 
