@@ -2,6 +2,7 @@ from discord.ext import commands, tasks
 import datetime
 import re
 
+
 class Reminder:
     def __init__(self, ctx, time, message):
         self.ctx = ctx
@@ -28,7 +29,7 @@ class Reminder:
         return f"{self.time} | {self.ctx.author} | {self.message}"
 
 
-class ReminderManager(commands.Cog):
+class ReminderManager(commands.Cog, name="reminder"):
     def __init__(self, bot):
         self.bot = bot
         self.reminders = []
@@ -43,7 +44,9 @@ class ReminderManager(commands.Cog):
             await ctx.send_help("remindme")
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}.Sent help page")
 
-    @remind_me.command(name="in", help="Add a reminder in X time")
+    @remind_me.command(name="in", help="Remind me after some time has passed\n"
+                                       "Example: !rm in 10h 15m 30s Meeting with Chris",
+                       usage="[1h|1m|1s] [Message]")
     async def add_in(self, ctx, *args):
         hours, minutes, seconds = 0, 0, 0
         message = ""
