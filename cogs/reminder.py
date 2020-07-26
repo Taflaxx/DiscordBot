@@ -47,6 +47,7 @@ class ReminderManager(commands.Cog):
     async def add_in(self, ctx, hours, minutes, message=""):
         time = datetime.datetime.now() + datetime.timedelta(hours=int(hours), minutes=int(minutes))
         self.reminders.append(Reminder(ctx, time, message))
+        await ctx.send(f"**`SUCCESS:`** I will remind you at {time.replace(microsecond=0)}")
 
     @remind_me.command(name="list", aliases=["l", "ls"], help="List all of your reminders")
     async def list(self, ctx):
