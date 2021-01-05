@@ -54,8 +54,8 @@ class Reminder:
             print(f"Loaded reminder for {self.user} at {self.time} with message \"{self.message}\"")
         else:
             # Add reminder to db
-            self.db_object = ReminderDB(id=self.id, time=self.time.strftime("%Y-%m-%d %H:%M:%S"), user=self.user.id, channel=self.channel.id,
-                                        message=self.message)
+            self.db_object = ReminderDB(id=self.id, time=self.time.strftime("%Y-%m-%d %H:%M:%S"), user=self.user.id,
+                                        channel=self.channel.id, message=self.message)
             db.add(self.db_object)
             db.commit()
             print(f"Created new reminder for {self.user} at {self.time} with message \"{self.message}\"")
@@ -131,7 +131,7 @@ class ReminderManager(commands.Cog, name="reminder"):
             else:
                 message += arg + " "
         time = datetime.datetime.now() + datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
-        self.reminders.append(Reminder(self.bot, ctx.user, ctx.channel, time, message))
+        self.reminders.append(Reminder(self.bot, ctx.author, ctx.channel, time, message))
         await ctx.send(f"**`SUCCESS:`** I will remind you at {time.replace(microsecond=0)}")
 
     @remind_me.command(name="list", aliases=["l", "ls"], help="List all of your reminders")
