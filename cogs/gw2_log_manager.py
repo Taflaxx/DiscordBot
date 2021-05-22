@@ -1,12 +1,14 @@
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import Embed
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey
+from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime
 import logging
 import requests
 import json
 import re
+from datetime import datetime, timezone
+import csv
 
 # Set up logging
 logger = logging.getLogger('sqlalchemy.engine')
@@ -28,6 +30,7 @@ class Log(Base):
 
     link = Column(String, primary_key=True)
     fight_name = Column(String)
+    date_time = Column(DateTime)
     players = relationship("Player", back_populates="log")
 
 
@@ -66,7 +69,7 @@ class LogManager(commands.Cog, name="log"):
 
     @log.command(name="add", aliases=["a"], help="Add logs to the database", usage="[log]")
     async def add_logs(self, ctx, *, arg):
-        print(arg)
+        # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
         print(f"Found {len(logs)} Logs")
         for log in logs:
@@ -92,6 +95,9 @@ class LogManager(commands.Cog, name="log"):
         log_db = Log(link=log, fight_name=data["fightName"])
         print(f"{log} | {data['fightName']}:")
 
+        # Convert time to utc
+        log_db.date_time = datetime.strptime(data["timeStartStd"], '%Y-%m-%d %H:%M:%S %z', )
+
         # Parse json data for each player
         for player in data["players"]:
             # Check if the player is an actual player and not a NPC
@@ -115,23 +121,39 @@ class LogManager(commands.Cog, name="log"):
 
         # Parsing arguments
         count = 0
+        export_csv = False
         for arg in args:
             if arg == "-a":
-                print(args[count + 1])
                 result = result.filter(Player.account == args[count + 1])
             elif arg == "-c":
                 result = result.filter(Player.character_name == args[count + 1])
+            elif arg == "-p":
+                result = result.filter(Player.profession == args[count + 1])
             elif arg == "-b":
                 result = result.filter(Log.fight_name == args[count + 1])
+            elif arg == "-csv":
+                export_csv = True
             count += 1
         result = result.order_by(Player.dps_all.desc())
 
-        # Create Embed
-        # Limited to top 9 logs
-        embed = Embed(title="Logs")
-        for row in result[:9]:
-            embed.add_field(name=f"{row.log.fight_name}", value=f"[Link]({row.log.link})\n DPS: {row.dps_all}")
-        await ctx.send(embed=embed)
+        if export_csv:
+            filename = f"{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
+            with open(filename, mode="w") as file:
+                csv_writer = csv.writer(file, delimiter=',')
+                for row in result:
+                    csv_writer.writerow([row.log.link, row.log.fight_name, row.account, row.character_name,
+                                         row.profession, row.dps_all, row.damage_taken])
+
+        else:
+            # Create Embed
+            # Limited to top 9 logs
+            embed = Embed(title="Top Logs")
+            val = ""
+            for row in result[:5]:
+                val += f"[{row.log.fight_name}:]({row.log.link})\n{row.character_name} - {row.profession}\n" \
+                       f"DPS: {row.dps_all}\nDamage taken: {row.damage_taken}\n\n"
+            embed.add_field(name=f"Sorted by dps", value=val)
+            await ctx.send(embed=embed)
 
 
 def setup(bot):
