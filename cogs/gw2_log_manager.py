@@ -1,12 +1,11 @@
 import aiohttp
 from discord.ext import commands
-from discord import Embed
+from discord import Embed, File
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime
 import logging
-import requests
-import json
+import os
 import re
 from datetime import datetime, timezone
 import csv
@@ -140,13 +139,18 @@ class LogManager(commands.Cog, name="log"):
             count += 1
         result = result.order_by(Player.dps_all.desc())
 
+        if result.count() == 0:
+            await ctx.send("**`ERROR:`** No logs found")
+            return
         if export_csv:
-            filename = f"{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
-            with open(filename, mode="w") as file:
+            filename = f"tmp/{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
+            with open(filename, mode="w", newline="") as file:
                 csv_writer = csv.writer(file, delimiter=',')
                 for row in result:
                     csv_writer.writerow([row.log.link, row.log.fight_name, row.account, row.character_name,
                                          row.profession, row.dps_all, row.damage_taken])
+            await ctx.send(file=File(filename))
+            os.remove(filename)
 
         else:
             # Create Embed
