@@ -10,6 +10,13 @@ import re
 from datetime import datetime, timezone
 import csv
 
+# Boss name abbreviations for easier searching
+boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious", "vg": "Vale Guardian",
+             "matt" : "Matthias Gabrel", "sloth": "Slothasor", "kc": "Keep Construct",
+             "mo": "Mursaat Overseer", "sam": "Samarog", "dei": "Deimos", "sh": "Soulless Horror",
+             "tl": "Twin Largos", "ca": "Conjured Amalgamate", "qpeer": "Qadim the Peerless",
+             "q1": "Qadim", "q2": "Qadim the Peerless", "sabir": "Cardinal Sabir", "adina": "Cardinal Adina"}
+
 # Set up logging
 logger = logging.getLogger('sqlalchemy.engine')
 logger.setLevel(logging.DEBUG)
@@ -116,7 +123,6 @@ class LogManager(commands.Cog, name="log"):
             else:
                 print(f"{player['account']} | Not a player")
         db.add(log_db)
-        print("\n")
 
     @log.command(name="filter")
     async def filter_log(self, ctx, *args):
@@ -133,7 +139,11 @@ class LogManager(commands.Cog, name="log"):
             elif arg == "-p":
                 result = result.filter(Player.profession == args[count + 1])
             elif arg == "-b":
-                result = result.filter(Log.fight_name == args[count + 1])
+                if args[count + 1] in boss_abrv:
+                    boss = boss_abrv[args[count + 1]]
+                else:
+                    boss = args[count + 1]
+                result = result.filter(Log.fight_name == boss)
             elif arg == "-csv":
                 export_csv = True
             count += 1
