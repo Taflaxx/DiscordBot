@@ -49,10 +49,10 @@ class Player(Base):
     log_link = Column(String, ForeignKey("logs.link"))
     log = relationship("Log", back_populates="players")
     account = Column(String)
-    character_name = Column(String)
+    character = Column(String)
     profession = Column(String)
-    dps_all = Column(Integer)
-    damage_taken = Column(Integer)
+    dps = Column(Integer)
+    damage = Column(Integer)
 
 
 Base.metadata.create_all(engine)
@@ -113,18 +113,18 @@ class LogManager(commands.Cog, name="log"):
             # Check if the player is an actual player and not a NPC
             if re.match("^[a-zA-Z]+\.(\d{4})$", player["account"]):
                 player_db = Player(account=player["account"])
-                player_db.character_name = player["name"]
+                player_db.character = player["name"]
                 player_db.profession = player["profession"]
-                player_db.dps_all = player["dpsAll"][0]["dps"]
-                player_db.damage_taken = player["defenses"][0]["damageTaken"]
+                player_db.dps = player["dpsAll"][0]["dps"]
+                player_db.damage = player["defenses"][0]["damageTaken"]
                 log_db.players.append(player_db)
                 db.add(player_db)
-                print(f"{player_db.account} | {player_db.character_name} | {player_db.profession}")
+                print(f"{player_db.account} | {player_db.character} | {player_db.profession}")
             else:
                 print(f"{player['account']} | Not a player")
         db.add(log_db)
 
-    @log.command(name="filter")
+    @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-csv]")
     async def filter_log(self, ctx, *args):
         result = db.query(Player).join(Log)
 
@@ -132,13 +132,13 @@ class LogManager(commands.Cog, name="log"):
         count = 0
         export_csv = False
         for arg in args:
-            if arg == "-a":
+            if arg == "-a" or arg == "-account":
                 result = result.filter(Player.account == args[count + 1])
-            elif arg == "-c":
-                result = result.filter(Player.character_name == args[count + 1])
-            elif arg == "-p":
+            elif arg == "-c" or arg == "-character":
+                result = result.filter(Player.character == args[count + 1])
+            elif arg == "-p" or arg == "-profession":
                 result = result.filter(Player.profession == args[count + 1])
-            elif arg == "-b":
+            elif arg == "-b" or arg == "-boss":
                 if args[count + 1] in boss_abrv:
                     boss = boss_abrv[args[count + 1]]
                 else:
@@ -147,29 +147,32 @@ class LogManager(commands.Cog, name="log"):
             elif arg == "-csv":
                 export_csv = True
             count += 1
-        result = result.order_by(Player.dps_all.desc())
+        result = result.order_by(Player.dps.desc())
 
         if result.count() == 0:
             await ctx.send("**`ERROR:`** No logs found")
             return
+
         if export_csv:
+            # Create csv, send it and delete it afterwards
             filename = f"tmp/{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
             with open(filename, mode="w", newline="") as file:
                 csv_writer = csv.writer(file, delimiter=',')
+                csv_writer.writerow(["link", "boss", "account", "character", "profession", "dps", "damage"])
                 for row in result:
-                    csv_writer.writerow([row.log.link, row.log.fight_name, row.account, row.character_name,
-                                         row.profession, row.dps_all, row.damage_taken])
+                    csv_writer.writerow([row.log.link, row.log.fight_name, row.account, row.character,
+                                         row.profession, row.dps, row.damage])
             await ctx.send(file=File(filename))
             os.remove(filename)
 
         else:
             # Create Embed
-            # Limited to top 9 logs
+            # Limited to top 5 logs
             embed = Embed(title="Top Logs")
             val = ""
             for row in result[:5]:
-                val += f"[{row.log.fight_name}:]({row.log.link})\n{row.character_name} - {row.profession}\n" \
-                       f"DPS: {row.dps_all}\nDamage taken: {row.damage_taken}\n\n"
+                val += f"[{row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
+                       f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
             embed.add_field(name=f"Sorted by dps", value=val)
             await ctx.send(embed=embed)
 
