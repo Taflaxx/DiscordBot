@@ -106,7 +106,7 @@ class LogManager(commands.Cog, name="log"):
         print(f"{log} | {data['fightName']}:")
 
         # Convert time to utc
-        log_db.date_time = datetime.strptime(data["timeStartStd"], '%Y-%m-%d %H:%M:%S %z', )
+        log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
 
         # Parse json data for each player
         for player in data["players"]:
