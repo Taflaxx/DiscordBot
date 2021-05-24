@@ -1,3 +1,4 @@
+import aiohttp
 from discord.ext import commands
 from discord import Embed
 from sqlalchemy.ext.declarative import declarative_base
@@ -73,18 +74,21 @@ class LogManager(commands.Cog, name="log"):
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
         print(f"Found {len(logs)} Logs")
         for log in logs:
-            self.add_log(log)
+            await self.add_log(log)
         db.commit()
 
-    def add_log(self, log):
+    async def add_log(self, log):
         # Check if log already exists in the database
         if db.query(Log).filter_by(link=log).first():
             print(f"{log} | Already in Database")
             return
 
         # Get json data
-        r = requests.get("https://dps.report/getJson?permalink=" + log)
-        data = json.loads(r.content)
+        # Using aiohttp as it works async
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://dps.report/getJson?permalink=" + log) as r:
+                if r.status == 200:
+                    data = await r.json()
 
         # Check if boss was killed
         if not data["success"]:
