@@ -79,15 +79,22 @@ class LogManager(commands.Cog, name="log"):
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
         print(f"Found {len(logs)} Logs")
+        message = await ctx.send(f"Found {len(logs)} logs:")
+
+        errors = 0  # Tracks the number of errors while adding logs
         for log in logs:
-            await self.add_log(log)
+            r = await self.add_log(log)
+            if r is not None:
+                errors += 1
+                await message.edit(content=f"{message.content}\n{r}")   # update original message with errors
         db.commit()
+        await message.edit(content=f"{message.content}\nAdded {len(logs)-errors}/{len(logs)} logs to the database.")
 
     async def add_log(self, log):
         # Check if log already exists in the database
         if db.query(Log).filter_by(link=log).first():
             print(f"{log} | Already in Database")
-            return
+            return f"{log} | Already in Database"
 
         # Get json data
         # Using aiohttp as it works async
@@ -95,11 +102,13 @@ class LogManager(commands.Cog, name="log"):
             async with session.get("https://dps.report/getJson?permalink=" + log) as r:
                 if r.status == 200:
                     data = await r.json()
+                else:
+                    return f"{log} | {r.status}"
 
         # Check if boss was killed
         if not data["success"]:
             print(f"{log} | Boss was not killed")
-            return
+            return f"{log} | Boss was not killed"
 
         # Create log in DB
         log_db = Log(link=log, fight_name=data["fightName"])
