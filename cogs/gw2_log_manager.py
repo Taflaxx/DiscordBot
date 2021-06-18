@@ -143,6 +143,8 @@ class LogManager(commands.Cog, name="log"):
                     boss = boss_abrv[args[count + 1]]
                 else:
                     boss = args[count + 1]
+                if "-cm" in args:
+                    boss += " CM"
                 result = result.filter(func.lower(Log.fight_name) == func.lower(boss))
             elif arg == "-csv":
                 export_csv = True
