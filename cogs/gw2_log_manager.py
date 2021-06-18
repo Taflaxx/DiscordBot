@@ -129,26 +129,24 @@ class LogManager(commands.Cog, name="log"):
         result = db.query(Player).join(Log)
 
         # Parsing arguments
-        count = 0
         export_csv = False
-        for arg in args:
+        for i, arg in enumerate(args):
             if arg == "-a" or arg == "-account":
-                result = result.filter(Player.account == args[count + 1])
+                result = result.filter(Player.account.ilike(f"%{args[i + 1]}%"))
             elif arg == "-c" or arg == "-character":
-                result = result.filter(Player.character == args[count + 1])
+                result = result.filter(Player.character.ilike(f"%{args[i + 1]}%"))
             elif arg == "-p" or arg == "-profession":
-                result = result.filter(Player.profession == args[count + 1])
+                result = result.filter(Player.profession.ilike(f"%{args[i + 1]}%"))
             elif arg == "-b" or arg == "-boss":
-                if args[count + 1].lower() in boss_abrv:
-                    boss = boss_abrv[args[count + 1]]
+                if args[i + 1].lower() in boss_abrv:
+                    boss = boss_abrv[args[i + 1]]
                 else:
-                    boss = args[count + 1]
+                    boss = args[i + 1]
                 if "-cm" in args:
                     boss += " CM"
-                result = result.filter(func.lower(Log.fight_name) == func.lower(boss))
+                result = result.filter(Log.fight_name.ilike(f"%{boss}%"))   # case insensitive LIKE
             elif arg == "-csv":
                 export_csv = True
-            count += 1
         result = result.order_by(Player.dps.desc())
 
         if result.count() == 0:
