@@ -143,7 +143,7 @@ class LogManager(commands.Cog, name="log"):
                     boss = boss_abrv[args[count + 1]]
                 else:
                     boss = args[count + 1]
-                result = result.filter(Log.fight_name.lower() == boss)
+                result = result.filter(Log.fight_name.lower() == boss.lower())
             elif arg == "-csv":
                 export_csv = True
             count += 1
