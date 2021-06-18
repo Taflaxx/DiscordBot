@@ -139,11 +139,11 @@ class LogManager(commands.Cog, name="log"):
             elif arg == "-p" or arg == "-profession":
                 result = result.filter(Player.profession == args[count + 1])
             elif arg == "-b" or arg == "-boss":
-                if args[count + 1] in boss_abrv:
+                if args[count + 1].lower() in boss_abrv:
                     boss = boss_abrv[args[count + 1]]
                 else:
                     boss = args[count + 1]
-                result = result.filter(Log.fight_name == boss)
+                result = result.filter(Log.fight_name.lower() == boss)
             elif arg == "-csv":
                 export_csv = True
             count += 1
