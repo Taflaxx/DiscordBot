@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import Embed, File
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime, func
 import logging
 import os
 import re
@@ -143,7 +143,7 @@ class LogManager(commands.Cog, name="log"):
                     boss = boss_abrv[args[count + 1]]
                 else:
                     boss = args[count + 1]
-                result = result.filter(Log.fight_name.lower() == boss.lower())
+                result = result.filter(func.lower(Log.fight_name) == func.lower(boss))
             elif arg == "-csv":
                 export_csv = True
             count += 1
