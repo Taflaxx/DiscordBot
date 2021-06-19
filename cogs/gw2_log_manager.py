@@ -74,7 +74,7 @@ class LogManager(commands.Cog, name="log"):
             await ctx.send_help("log")
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
 
-    @log.command(name="add", aliases=["a"], help="Add logs to the database", usage="[log]")
+    @log.command(name="add", aliases=["a"], help="Add logs to the database", usage="[log(s)]")
     async def add_logs(self, ctx, *, arg):
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
@@ -133,7 +133,7 @@ class LogManager(commands.Cog, name="log"):
                 print(f"{player['account']} | Not a player")
         db.add(log_db)
 
-    @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-csv]")
+    @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-cm][-csv]")
     async def filter_log(self, ctx, *args):
         result = db.query(Player).join(Log)
 
@@ -190,6 +190,9 @@ class LogManager(commands.Cog, name="log"):
                     val += f"[{i+6}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                            f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
                 embed.add_field(name=f"Sorted by dps [6-10]:", value=val)
+
+            embed.add_field(name="\u200B", value="If you find any bugs or your dps seems low you can submit a bugreport "
+                                                 "[here](https://www.youtube.com/watch?v=d1YBv2mWll0)", inline=False)
             await ctx.send(embed=embed)
 
 
