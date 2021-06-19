@@ -151,11 +151,11 @@ class LogManager(commands.Cog, name="log"):
                     boss = boss_abrv[args[i + 1]]
                 else:
                     boss = args[i + 1]
-                if "-cm" in args:
-                    boss += " CM"
                 result = result.filter(Log.fight_name.ilike(f"%{boss}%"))   # case insensitive LIKE
             elif arg == "-csv":
                 export_csv = True
+            elif arg == "-cm":
+                result = result.filter(Log.fight_name.ilike(f"% CM"))
         result = result.order_by(Player.dps.desc())
 
         if result.count() == 0:
