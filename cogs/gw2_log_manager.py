@@ -15,7 +15,8 @@ boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious",
              "matt" : "Matthias Gabrel", "sloth": "Slothasor", "kc": "Keep Construct",
              "mo": "Mursaat Overseer", "sam": "Samarog", "dei": "Deimos", "sh": "Soulless Horror",
              "tl": "Twin Largos", "ca": "Conjured Amalgamate", "qpeer": "Qadim the Peerless",
-             "q1": "Qadim", "q2": "Qadim the Peerless", "sabir": "Cardinal Sabir", "adina": "Cardinal Adina"}
+             "q1": "Qadim", "q2": "Qadim the Peerless", "qtp": "Qadim the Peerless", "sabir": "Cardinal Sabir",
+             "adina": "Cardinal Adina"}
 
 # Set up logging
 logger = logging.getLogger('sqlalchemy.engine')
@@ -152,7 +153,11 @@ class LogManager(commands.Cog, name="log"):
                     boss = boss_abrv[args[i + 1]]
                 else:
                     boss = args[i + 1]
-                result = result.filter(Log.fight_name.ilike(f"%{boss}%"))   # case insensitive LIKE
+                # Prevent "Qadim the Peerless" logs from showing up when searching for qadim
+                if boss.lower() == "qadim":
+                    result = result.filter(Log.fight_name.ilike(boss))
+                else:
+                    result = result.filter(Log.fight_name.ilike(f"%{boss}%"))   # case insensitive LIKE
             elif arg == "-csv":
                 export_csv = True
             elif arg == "-cm":
