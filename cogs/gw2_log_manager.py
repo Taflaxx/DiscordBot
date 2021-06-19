@@ -133,7 +133,7 @@ class LogManager(commands.Cog, name="log"):
                 print(f"{player['account']} | Not a player")
         db.add(log_db)
 
-    @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-cm][-csv]")
+    @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-cm][-nm][-csv]")
     async def filter_log(self, ctx, *args):
         result = db.query(Player).join(Log)
 
@@ -155,7 +155,9 @@ class LogManager(commands.Cog, name="log"):
             elif arg == "-csv":
                 export_csv = True
             elif arg == "-cm":
-                result = result.filter(Log.fight_name.ilike(f"% CM"))
+                result = result.filter(Log.fight_name.ilike("% CM"))
+            elif arg == "-nm":
+                result = result.filter(Log.fight_name.notilike("% CM"))
         result = result.order_by(Player.dps.desc())
 
         if result.count() == 0:
