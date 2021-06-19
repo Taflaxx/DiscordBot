@@ -125,7 +125,7 @@ class LogManager(commands.Cog, name="log"):
                 player_db = Player(account=player["account"])
                 player_db.character = player["name"]
                 player_db.profession = player["profession"]
-                player_db.dps = player["dpsAll"][0]["dps"]
+                player_db.dps = player["dpsTargets"][0][0]["dps"]
                 player_db.damage = player["defenses"][0]["damageTaken"]
                 log_db.players.append(player_db)
                 db.add(player_db)
