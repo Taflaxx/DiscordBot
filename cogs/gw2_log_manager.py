@@ -159,7 +159,7 @@ class LogManager(commands.Cog, name="log"):
         result = result.order_by(Player.dps.desc())
 
         if result.count() == 0:
-            await ctx.send("**`ERROR:`** No logs found")
+            await ctx.send("**:x: No logs found**")
             return
 
         if export_csv:
