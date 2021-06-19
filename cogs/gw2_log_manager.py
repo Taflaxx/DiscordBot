@@ -78,7 +78,7 @@ class LogManager(commands.Cog, name="log"):
     async def add_logs(self, ctx, *, arg):
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
-        print(f"Found {len(logs)} Logs")
+        #print(f"Found {len(logs)} Logs")
         message = await ctx.send(f"Found {len(logs)} logs:")
 
         errors = 0  # Tracks the number of errors while adding logs
@@ -93,7 +93,7 @@ class LogManager(commands.Cog, name="log"):
     async def add_log(self, log):
         # Check if log already exists in the database
         if db.query(Log).filter_by(link=log).first():
-            print(f"{log} | Already in Database")
+            #print(f"{log} | Already in Database")
             return f"{log} | Already in Database"
 
         # Get json data
@@ -107,12 +107,12 @@ class LogManager(commands.Cog, name="log"):
 
         # Check if boss was killed
         if not data["success"]:
-            print(f"{log} | Boss was not killed")
+            #print(f"{log} | Boss was not killed")
             return f"{log} | Boss was not killed"
 
         # Create log in DB
         log_db = Log(link=log, fight_name=data["fightName"])
-        print(f"{log} | {data['fightName']}:")
+        #print(f"{log} | {data['fightName']}:")
 
         # Convert time to utc
         log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
@@ -128,9 +128,10 @@ class LogManager(commands.Cog, name="log"):
                 player_db.damage = player["defenses"][0]["damageTaken"]
                 log_db.players.append(player_db)
                 db.add(player_db)
-                print(f"{player_db.account} | {player_db.character} | {player_db.profession}")
+                #print(f"{player_db.account} | {player_db.character} | {player_db.profession}")
             else:
-                print(f"{player['account']} | Not a player")
+                pass
+                #print(f"{player['account']} | Not a player")
         db.add(log_db)
 
     @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-cm][-nm][-csv]")
