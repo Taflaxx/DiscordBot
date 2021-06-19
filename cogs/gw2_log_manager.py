@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import Embed, File
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime
 import logging
 import os
 import re
@@ -176,13 +176,20 @@ class LogManager(commands.Cog, name="log"):
 
         else:
             # Create Embed
-            # Limited to top 5 logs
-            embed = Embed(title="Top Logs")
+            # Limited to top 10 logs
+            embed = Embed(title="Top Logs", color=0x0099ff)
             val = ""
-            for row in result[:5]:
-                val += f"[{row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
+            for i, row in enumerate(result[:5]):
+                val += f"[{i+1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                        f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-            embed.add_field(name=f"Sorted by dps", value=val)
+            embed.add_field(name=f"Sorted by dps [1-5]:", value=val)
+
+            val = ""
+            if result[5:10]:
+                for i, row in enumerate(result[5:10]):
+                    val += f"[{i+6}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
+                           f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
+                embed.add_field(name=f"Sorted by dps [6-10]:", value=val)
             await ctx.send(embed=embed)
 
 
