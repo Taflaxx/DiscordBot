@@ -1,6 +1,6 @@
 import aiohttp
 from discord.ext import commands
-from discord import Embed, File
+from discord import Embed, File, TextChannel
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime
@@ -197,6 +197,23 @@ class LogManager(commands.Cog, name="log"):
                                                  "[here](https://www.youtube.com/watch?v=d1YBv2mWll0)", inline=False)
             await ctx.send(embed=embed)
 
+    @log.command(name="history", usage="[channel] [limit]")
+    @commands.is_owner()
+    async def parse_channel(self, ctx, channel: TextChannel, limit: int = 100):
+        messages = await channel.history(limit=limit).flatten()
+        log_counter = 0
+        errors = 0  # Tracks the number of errors while adding logs
+        for message in messages:
+            # Find all links to logs in the message
+            logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
+
+            for log in logs:
+                log_counter += 1
+                r = await self.add_log(log)
+                if r is not None:
+                    errors += 1
+            db.commit()
+        await ctx.send(f"Added {log_counter-errors}/{log_counter} logs to the database.")
 
 def setup(bot):
     bot.add_cog(LogManager(bot))
