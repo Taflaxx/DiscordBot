@@ -13,7 +13,7 @@ from collections import Counter
 
 # Boss name abbreviations for easier searching
 boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious", "vg": "Vale Guardian",
-             "matt" : "Matthias Gabrel", "sloth": "Slothasor", "kc": "Keep Construct",
+             "matt": "Matthias Gabrel", "sloth": "Slothasor", "kc": "Keep Construct",
              "mo": "Mursaat Overseer", "sam": "Samarog", "dei": "Deimos", "sh": "Soulless Horror",
              "tl": "Twin Largos", "ca": "Conjured Amalgamate", "qpeer": "Qadim the Peerless",
              "q1": "Qadim", "q2": "Qadim the Peerless", "qtp": "Qadim the Peerless", "sabir": "Cardinal Sabir",
@@ -71,7 +71,7 @@ def most_frequent_embed(list, limit=5):
     return ret
 
 
-class LogManager(commands.Cog, name="log"):
+class LogManager(commands.Cog, name="LogManager"):
     def __init__(self, bot):
         self.bot = bot
 
@@ -84,11 +84,11 @@ class LogManager(commands.Cog, name="log"):
             await ctx.send_help("log")
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
 
-    @log.command(name="add", aliases=["a"], help="Add logs to the database", usage="[log(s)]")
+    @log.command(name="add", help="Add logs to the database", usage="[log(s)]")
     async def add_logs(self, ctx, *, arg):
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
-        #print(f"Found {len(logs)} Logs")
+        # print(f"Found {len(logs)} Logs")
         message = await ctx.send(f"Found {len(logs)} logs:")
 
         errors = 0  # Tracks the number of errors while adding logs
@@ -96,14 +96,14 @@ class LogManager(commands.Cog, name="log"):
             r = await self.add_log(log)
             if r is not None:
                 errors += 1
-                await message.edit(content=f"{message.content}\n{r}")   # update original message with errors
+                await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
         db.commit()
-        await message.edit(content=f"{message.content}\nAdded {len(logs)-errors}/{len(logs)} logs to the database.")
+        await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
 
     async def add_log(self, log):
         # Check if log already exists in the database
         if db.query(Log).filter_by(link=log).first():
-            #print(f"{log} | Already in Database")
+            # print(f"{log} | Already in Database")
             return f"{log} | Already in Database"
 
         # Get json data
@@ -117,12 +117,12 @@ class LogManager(commands.Cog, name="log"):
 
         # Check if boss was killed
         if not data["success"]:
-            #print(f"{log} | Boss was not killed")
+            # print(f"{log} | Boss was not killed")
             return f"{log} | Boss was not killed"
 
         # Create log in DB
         log_db = Log(link=log, fight_name=data["fightName"])
-        #print(f"{log} | {data['fightName']}:")
+        # print(f"{log} | {data['fightName']}:")
 
         # Convert time to utc
         log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
@@ -138,27 +138,42 @@ class LogManager(commands.Cog, name="log"):
                 player_db.damage = player["defenses"][0]["damageTaken"]
                 log_db.players.append(player_db)
                 db.add(player_db)
-                #print(f"{player_db.account} | {player_db.character} | {player_db.profession}")
+                # print(f"{player_db.account} | {player_db.character} | {player_db.profession}")
             else:
                 pass
-                #print(f"{player['account']} | Not a player")
+                # print(f"{player['account']} | Not a player")
         db.add(log_db)
 
-    @log.command(name="filter", usage="[-a/-account][-c/-character][-p/-profession][-b/-boss][-cm][-nm][-csv]")
+    @log.command(name="filter", aliases=["f"], help="Search for logs",
+                 usage="\nOptions:\n"
+                       "-h, -help\tShows this page\n"
+                       "-a <account>\tFilter by account name\n"
+                       "-c <character>\tFilter by character name\n"
+                       "-p <profession>\tFilter by profession\n"
+                       "-b <boss>\tFilter by boss\n"
+                       "-cm \tOnly show challenge mode bosses\n"
+                       "-nm \tOnly show normal mode bosses\n"
+                       "-order <dps|dmg>\tSet stat to order by\n"
+                       "-asc\tAscending oder\n"
+                       "-desc\tDescending order\n"
+                       "-csv\t Export query result as a csv file")
     async def filter_log(self, ctx, *args):
+        if "-h" in args or "-help" in args:
+            await ctx.send_help("log filter")
+            return
         result = db.query(Player).join(Log)
 
         # Parsing arguments
         export_csv = False
-        sort = "dps"
+        order = "dps"
         for i, arg in enumerate(args):
-            if arg == "-a" or arg == "-account":
+            if arg == "-a" or arg == "--account":
                 result = result.filter(Player.account.ilike(f"%{args[i + 1]}%"))
-            elif arg == "-c" or arg == "-character":
+            elif arg == "-c" or arg == "--character":
                 result = result.filter(Player.character.ilike(f"%{args[i + 1]}%"))
-            elif arg == "-p" or arg == "-profession":
+            elif arg == "-p" or arg == "--profession":
                 result = result.filter(Player.profession.ilike(f"%{args[i + 1]}%"))
-            elif arg == "-b" or arg == "-boss":
+            elif arg == "-b" or arg == "--boss":
                 if args[i + 1].lower() in boss_abrv:
                     boss = boss_abrv[args[i + 1]]
                 else:
@@ -167,19 +182,19 @@ class LogManager(commands.Cog, name="log"):
                 if boss.lower() == "qadim":
                     result = result.filter(Log.fight_name.ilike(boss))
                 else:
-                    result = result.filter(Log.fight_name.ilike(f"%{boss}%"))   # case insensitive LIKE
+                    result = result.filter(Log.fight_name.ilike(f"%{boss}%"))  # case insensitive LIKE
             elif arg == "-csv":
                 export_csv = True
             elif arg == "-cm":
                 result = result.filter(Log.fight_name.ilike("% CM"))
             elif arg == "-nm":
                 result = result.filter(Log.fight_name.notilike("% CM"))
-            elif arg == "-sort":
-                sort = args[i + 1]
+            elif arg == "-order":
+                order = args[i + 1]
 
         # Order By
         # TODO: Cleaner implementation
-        if sort == "dmg" or sort == "damage":
+        if order == "dmg" or order == "damage":
             if "-desc" in args:
                 result = result.order_by(Player.damage.desc())
             else:
@@ -212,22 +227,23 @@ class LogManager(commands.Cog, name="log"):
             embed = Embed(title="Top Logs", color=0x0099ff)
             val = ""
             for i, row in enumerate(result[:5]):
-                val += f"[{i+1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
+                val += f"[{i + 1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                        f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-            embed.add_field(name=f"Sorted by {sort} [1-5]:", value=val)
+            embed.add_field(name=f"Sorted by {order} [1-5]:", value=val)
 
             val = ""
             if result[5:10]:
                 for i, row in enumerate(result[5:10]):
-                    val += f"[{i+6}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
+                    val += f"[{i + 6}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                            f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-                embed.add_field(name=f"Sorted by {sort} [6-10]:", value=val)
+                embed.add_field(name=f"Sorted by {order} [6-10]:", value=val)
 
-            embed.add_field(name="\u200B", value="If you find any bugs or your dps seems low you can submit a bugreport "
-                                                 "[here](https://www.youtube.com/watch?v=d1YBv2mWll0)", inline=False)
+            embed.add_field(name="\u200B",
+                            value="If you find any bugs or your dps seems low you can submit a bugreport "
+                                  "[here](https://www.youtube.com/watch?v=d1YBv2mWll0)", inline=False)
             await ctx.send(embed=embed)
 
-    @log.command(name="history", usage="[channel] [limit]")
+    @log.command(name="history", help="Search a Discord channel for logs", usage="<channel> [message_limit]")
     @commands.is_owner()
     async def parse_channel(self, ctx, channel: TextChannel, limit: int = 100):
         messages = await channel.history(limit=limit).flatten()
@@ -243,9 +259,9 @@ class LogManager(commands.Cog, name="log"):
                 if r is not None:
                     errors += 1
             db.commit()
-        await ctx.send(f"Added {log_counter-errors}/{log_counter} logs to the database.")
+        await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
 
-    @log.command(name="stats")
+    @log.command(name="stats", help="Show some general stats about the logs")
     async def stats(self, ctx):
         embed = Embed(title="Log Stats", color=0x0099ff)
         embed.add_field(name="Logs:", value=db.query(Log).count())
