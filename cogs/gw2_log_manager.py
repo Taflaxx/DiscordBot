@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import Embed, File, TextChannel
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime, func, desc
+from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime, func
 import logging
 import os
 import re
@@ -150,6 +150,7 @@ class LogManager(commands.Cog, name="log"):
 
         # Parsing arguments
         export_csv = False
+        sort = "dps"
         for i, arg in enumerate(args):
             if arg == "-a" or arg == "-account":
                 result = result.filter(Player.account.ilike(f"%{args[i + 1]}%"))
@@ -173,7 +174,21 @@ class LogManager(commands.Cog, name="log"):
                 result = result.filter(Log.fight_name.ilike("% CM"))
             elif arg == "-nm":
                 result = result.filter(Log.fight_name.notilike("% CM"))
-        result = result.order_by(Player.dps.desc())
+            elif arg == "-sort":
+                sort = args[i + 1]
+
+        # Order By
+        # TODO: Cleaner implementation
+        if sort == "dmg" or sort == "damage":
+            if "-desc" in args:
+                result = result.order_by(Player.damage.desc())
+            else:
+                result = result.order_by(Player.damage.asc())
+        else:
+            if "-asc" in args:
+                result = result.order_by(Player.dps.asc())
+            else:
+                result = result.order_by(Player.dps.desc())
 
         if result.count() == 0:
             await ctx.send("**:x: No logs found**")
@@ -199,14 +214,14 @@ class LogManager(commands.Cog, name="log"):
             for i, row in enumerate(result[:5]):
                 val += f"[{i+1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                        f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-            embed.add_field(name=f"Sorted by dps [1-5]:", value=val)
+            embed.add_field(name=f"Sorted by {sort} [1-5]:", value=val)
 
             val = ""
             if result[5:10]:
                 for i, row in enumerate(result[5:10]):
                     val += f"[{i+6}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                            f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-                embed.add_field(name=f"Sorted by dps [6-10]:", value=val)
+                embed.add_field(name=f"Sorted by {sort} [6-10]:", value=val)
 
             embed.add_field(name="\u200B", value="If you find any bugs or your dps seems low you can submit a bugreport "
                                                  "[here](https://www.youtube.com/watch?v=d1YBv2mWll0)", inline=False)
