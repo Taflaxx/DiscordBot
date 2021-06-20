@@ -3,12 +3,13 @@ from discord.ext import commands
 from discord import Embed, File, TextChannel
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime, func, desc
 import logging
 import os
 import re
 from datetime import datetime, timezone
 import csv
+from collections import Counter
 
 # Boss name abbreviations for easier searching
 boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious", "vg": "Vale Guardian",
@@ -60,6 +61,14 @@ Base.metadata.create_all(engine)
 Log.__table__.create(bind=engine, checkfirst=True)
 Player.__table__.create(bind=engine, checkfirst=True)
 db.commit()
+
+
+def most_frequent_embed(list, limit=5):
+    counter = Counter(list).most_common()
+    ret = ""
+    for i in range(0, limit):
+        ret += f"{counter[i][0][0]}: {counter[i][1]}\n"
+    return ret
 
 
 class LogManager(commands.Cog, name="log"):
@@ -220,6 +229,25 @@ class LogManager(commands.Cog, name="log"):
                     errors += 1
             db.commit()
         await ctx.send(f"Added {log_counter-errors}/{log_counter} logs to the database.")
+
+    @log.command(name="stats")
+    async def stats(self, ctx):
+        embed = Embed(title="Log Stats", color=0x0099ff)
+        embed.add_field(name="Logs:", value=db.query(Log).count())
+        embed.add_field(name="Distinct Accounts:", value=db.query(Player.account).distinct().count())
+        embed.add_field(name="Distinct Characters:", value=db.query(Player.character).distinct().count())
+
+        embed.add_field(name="Frequent accounts:", value=most_frequent_embed(db.query(Player.account).all()))
+        embed.add_field(name="Frequent characters:", value=most_frequent_embed(db.query(Player.character).all()))
+        embed.add_field(name="Frequent professions:", value=most_frequent_embed(db.query(Player.profession).all()))
+
+        embed.add_field(name="Average group dps:", value=str(round(db.query(func.sum(Player.dps)).all()[0][0] /
+                                                                   db.query(Log.link).distinct().count())))
+        embed.add_field(name="Average group damage:", value=str(round(db.query(func.sum(Player.damage)).all()[0][0] /
+                                                                      db.query(Log.link).distinct().count())))
+
+        await ctx.send(embed=embed)
+
 
 def setup(bot):
     bot.add_cog(LogManager(bot))
