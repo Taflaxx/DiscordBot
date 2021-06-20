@@ -1,74 +1,17 @@
-import aiohttp
 from discord.ext import commands
 from discord import Embed, File, TextChannel
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, create_engine, ForeignKey, DateTime, func
 import logging
 import os
-import re
-from datetime import datetime, timezone
 import csv
-from collections import Counter
-
-# Boss name abbreviations for easier searching
-boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious", "vg": "Vale Guardian",
-             "matt": "Matthias Gabrel", "sloth": "Slothasor", "kc": "Keep Construct",
-             "mo": "Mursaat Overseer", "sam": "Samarog", "dei": "Deimos", "sh": "Soulless Horror",
-             "tl": "Twin Largos", "ca": "Conjured Amalgamate", "qpeer": "Qadim the Peerless",
-             "q1": "Qadim", "q2": "Qadim the Peerless", "qtp": "Qadim the Peerless", "sabir": "Cardinal Sabir",
-             "adina": "Cardinal Adina"}
+from cogs.logmanager.utils import *
+from cogs.logmanager.db import *
 
 # Set up logging
-logger = logging.getLogger('sqlalchemy.engine')
+logger = logging.getLogger("sqlalchemy.engine")
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='gw2_log_man.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+handler = logging.FileHandler(filename="cogs/logmanager/logmanager.log", encoding="utf-8", mode="w")
+handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
 logger.addHandler(handler)
-
-# Init DB
-Base = declarative_base()
-engine = create_engine('sqlite:///gw2_log_manager.db', echo=False)
-Session = sessionmaker(bind=engine)
-db = Session()
-
-
-class Log(Base):
-    __bind_key__ = "gw2_log_manager"
-    __tablename__ = "logs"
-
-    link = Column(String, primary_key=True)
-    fight_name = Column(String)
-    date_time = Column(DateTime)
-    players = relationship("Player", back_populates="log")
-
-
-class Player(Base):
-    __bind_key__ = "gw2_log_manager"
-    __tablename__ = "players"
-
-    id = Column(Integer, primary_key=True)
-    log_link = Column(String, ForeignKey("logs.link"))
-    log = relationship("Log", back_populates="players")
-    account = Column(String)
-    character = Column(String)
-    profession = Column(String)
-    dps = Column(Integer)
-    damage = Column(Integer)
-
-
-Base.metadata.create_all(engine)
-Log.__table__.create(bind=engine, checkfirst=True)
-Player.__table__.create(bind=engine, checkfirst=True)
-db.commit()
-
-
-def most_frequent_embed(list, limit=5):
-    counter = Counter(list).most_common()
-    ret = ""
-    for i in range(0, limit):
-        ret += f"{counter[i][0][0]}: {counter[i][1]}\n"
-    return ret
 
 
 class LogManager(commands.Cog, name="LogManager"):
@@ -88,61 +31,16 @@ class LogManager(commands.Cog, name="LogManager"):
     async def add_logs(self, ctx, *, arg):
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
-        # print(f"Found {len(logs)} Logs")
         message = await ctx.send(f"Found {len(logs)} logs:")
 
         errors = 0  # Tracks the number of errors while adding logs
         for log in logs:
-            r = await self.add_log(log)
+            r = await add_log(log)
             if r is not None:
                 errors += 1
                 await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
         db.commit()
         await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
-
-    async def add_log(self, log):
-        # Check if log already exists in the database
-        if db.query(Log).filter_by(link=log).first():
-            # print(f"{log} | Already in Database")
-            return f"{log} | Already in Database"
-
-        # Get json data
-        # Using aiohttp as it works async
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://dps.report/getJson?permalink=" + log) as r:
-                if r.status == 200:
-                    data = await r.json()
-                else:
-                    return f"{log} | {r.status}"
-
-        # Check if boss was killed
-        if not data["success"]:
-            # print(f"{log} | Boss was not killed")
-            return f"{log} | Boss was not killed"
-
-        # Create log in DB
-        log_db = Log(link=log, fight_name=data["fightName"])
-        # print(f"{log} | {data['fightName']}:")
-
-        # Convert time to utc
-        log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
-
-        # Parse json data for each player
-        for player in data["players"]:
-            # Check if the player is an actual player and not a NPC
-            if re.match("^[a-zA-Z]+\.(\d{4})$", player["account"]):
-                player_db = Player(account=player["account"])
-                player_db.character = player["name"]
-                player_db.profession = player["profession"]
-                player_db.dps = player["dpsTargets"][0][0]["dps"]
-                player_db.damage = player["defenses"][0]["damageTaken"]
-                log_db.players.append(player_db)
-                db.add(player_db)
-                # print(f"{player_db.account} | {player_db.character} | {player_db.profession}")
-            else:
-                pass
-                # print(f"{player['account']} | Not a player")
-        db.add(log_db)
 
     @log.command(name="filter", aliases=["f"], help="Search for logs",
                  usage="\nOptions:\n"
@@ -211,7 +109,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
         if export_csv:
             # Create csv, send it and delete it afterwards
-            filename = f"tmp/{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
+            filename = f"cogs/logmanager/tmp/{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
             with open(filename, mode="w", newline="") as file:
                 csv_writer = csv.writer(file, delimiter=',')
                 csv_writer.writerow(["link", "boss", "account", "character", "profession", "dps", "damage"])
@@ -255,7 +153,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
             for log in logs:
                 log_counter += 1
-                r = await self.add_log(log)
+                r = await add_log(log)
                 if r is not None:
                     errors += 1
             db.commit()
