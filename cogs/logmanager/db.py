@@ -87,6 +87,11 @@ async def add_log(log):
             db.add(player_db)
     db.add(log_db)
 
+order_obj = {"dps": Player.dps,
+             "dmg": Player.damage, "damage": Player.damage,
+             "date": Log.date_time,
+             "time": Log.duration, "duration": Log.duration}
+
 
 async def filter_args(query, args):
     order = "dps"
@@ -112,22 +117,19 @@ async def filter_args(query, args):
             query = query.filter(Log.fight_name.ilike("% CM"))
         elif arg == "-nm":
             query = query.filter(Log.fight_name.notilike("% CM"))
+        elif arg == "-after":
+            query = query.filter(Log.date_time > datetime.fromisoformat(args[i + 1]).astimezone(timezone.utc))
+        elif arg == "-before":
+            query = query.filter(Log.date_time < datetime.fromisoformat(args[i + 1]).astimezone(timezone.utc))
         elif arg == "-order":
             order = args[i + 1]
         elif arg == "-limit":
             limit = args[i + 1]
 
     # Order By
-    # TODO: Cleaner implementation
-    if order == "dmg" or order == "damage":
-        if "-desc" in args:
-            query = query.order_by(Player.damage.desc())
-        else:
-            query = query.order_by(Player.damage.asc())
-    else:
-        order = "dps"
+    if order in order_obj:
         if "-asc" in args:
-            query = query.order_by(Player.dps.asc())
+            query = query.order_by(order_obj[order].asc())
         else:
-            query = query.order_by(Player.dps.desc())
+            query = query.order_by(order_obj[order].desc())
     return query, order, limit

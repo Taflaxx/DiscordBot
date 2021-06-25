@@ -52,9 +52,12 @@ class LogManager(commands.Cog, name="LogManager"):
                        "-b <boss>\tFilter by boss\n"
                        "-cm \tOnly show challenge mode bosses\n"
                        "-nm \tOnly show normal mode bosses\n"
-                       "-order <dps|dmg>\tSet stat to order by\n"
+                       "-before <YYYY-MM-DD>\tOnly show logs from before the date\n"
+                       "-after <YYYY-MM-DD>\tOnly show logs after the date\n"
+                       "-order <dps|dmg|date|duration>\tSet stat to order by\n"
                        "-asc\tAscending oder\n"
                        "-desc\tDescending order\n"
+                       "-limit\tNumber of logs to show [1-30, default 10]\n"
                        "-csv\t Export query result as a csv file")
     async def filter_log(self, ctx, *args):
         if "-h" in args or "-help" in args:
