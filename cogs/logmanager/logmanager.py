@@ -59,61 +59,20 @@ class LogManager(commands.Cog, name="LogManager"):
         if "-h" in args or "-help" in args:
             await ctx.send_help("log filter")
             return
-        result = db.query(Player).join(Log)
+        query = db.query(Player).join(Log)
+        query, order, limit = await filter_args(query, args)
 
-        # Parsing arguments
-        export_csv = False
-        order = "dps"
-        for i, arg in enumerate(args):
-            if arg == "-a" or arg == "--account":
-                result = result.filter(Player.account.ilike(f"%{args[i + 1]}%"))
-            elif arg == "-c" or arg == "--character":
-                result = result.filter(Player.character.ilike(f"%{args[i + 1]}%"))
-            elif arg == "-p" or arg == "--profession":
-                result = result.filter(Player.profession.ilike(f"%{args[i + 1]}%"))
-            elif arg == "-b" or arg == "--boss":
-                if args[i + 1].lower() in boss_abrv:
-                    boss = boss_abrv[args[i + 1]]
-                else:
-                    boss = args[i + 1]
-                # Prevent "Qadim the Peerless" logs from showing up when searching for qadim
-                if boss.lower() == "qadim":
-                    result = result.filter(Log.fight_name.ilike(boss))
-                else:
-                    result = result.filter(Log.fight_name.ilike(f"%{boss}%"))  # case insensitive LIKE
-            elif arg == "-csv":
-                export_csv = True
-            elif arg == "-cm":
-                result = result.filter(Log.fight_name.ilike("% CM"))
-            elif arg == "-nm":
-                result = result.filter(Log.fight_name.notilike("% CM"))
-            elif arg == "-order":
-                order = args[i + 1]
-
-        # Order By
-        # TODO: Cleaner implementation
-        if order == "dmg" or order == "damage":
-            if "-desc" in args:
-                result = result.order_by(Player.damage.desc())
-            else:
-                result = result.order_by(Player.damage.asc())
-        else:
-            if "-asc" in args:
-                result = result.order_by(Player.dps.asc())
-            else:
-                result = result.order_by(Player.dps.desc())
-
-        if result.count() == 0:
+        if query.count() == 0:
             await ctx.send("**:x: No logs found**")
             return
 
-        if export_csv:
+        if "-csv" in args:
             # Create csv, send it and delete it afterwards
             filename = f"cogs/logmanager/tmp/{datetime.now(tz=timezone.utc).strftime('export-%Y%m%d-%H%M%S')}.csv"
             with open(filename, mode="w", newline="") as file:
                 csv_writer = csv.writer(file, delimiter=',')
                 csv_writer.writerow(["link", "boss", "account", "character", "profession", "dps", "damage"])
-                for row in result:
+                for row in query:
                     csv_writer.writerow([row.log.link, row.log.fight_name, row.account, row.character,
                                          row.profession, row.dps, row.damage])
             await ctx.send(file=File(filename))

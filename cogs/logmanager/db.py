@@ -6,6 +6,7 @@ from sqlalchemy.orm import  relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+from cogs.logmanager.utils import boss_abrv
 
 # Init DB
 engine = create_engine("sqlite:///cogs/logmanager/logmanager.db", echo=False)
@@ -80,3 +81,48 @@ async def add_log(log):
             log_db.players.append(player_db)
             db.add(player_db)
     db.add(log_db)
+
+
+async def filter_args(query, args):
+    order = "dps"
+    limit = 10
+    for i, arg in enumerate(args):
+        if arg == "-a" or arg == "--account":
+            query = query.filter(Player.account.ilike(f"%{args[i + 1]}%"))
+        elif arg == "-c" or arg == "--character":
+            query = query.filter(Player.character.ilike(f"%{args[i + 1]}%"))
+        elif arg == "-p" or arg == "--profession":
+            query = query.filter(Player.profession.ilike(f"%{args[i + 1]}%"))
+        elif arg == "-b" or arg == "--boss":
+            if args[i + 1].lower() in boss_abrv:
+                boss = boss_abrv[args[i + 1]]
+            else:
+                boss = args[i + 1]
+            # Prevent "Qadim the Peerless" logs from showing up when searching for qadim
+            if boss.lower() == "qadim":
+                query = query.filter(Log.fight_name.ilike(boss))
+            else:
+                query = query.filter(Log.fight_name.ilike(f"%{boss}%"))  # case insensitive LIKE
+        elif arg == "-cm":
+            query = query.filter(Log.fight_name.ilike("% CM"))
+        elif arg == "-nm":
+            query = query.filter(Log.fight_name.notilike("% CM"))
+        elif arg == "-order":
+            order = args[i + 1]
+        elif arg == "-limit":
+            limit = args[i + 1]
+
+    # Order By
+    # TODO: Cleaner implementation
+    if order == "dmg" or order == "damage":
+        if "-desc" in args:
+            query = query.order_by(Player.damage.desc())
+        else:
+            query = query.order_by(Player.damage.asc())
+    else:
+        order = "dps"
+        if "-asc" in args:
+            query = query.order_by(Player.dps.asc())
+        else:
+            query = query.order_by(Player.dps.desc())
+    return query, order, limit
