@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time
 import re
 import aiohttp
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import  relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from cogs.logmanager.utils import boss_abrv
@@ -21,6 +21,7 @@ class Log(Base):
 
     link = Column(String, primary_key=True)
     fight_name = Column(String)
+    duration = Column(Time)
     date_time = Column(DateTime)
     players = relationship("Player", back_populates="log")
 
@@ -68,6 +69,10 @@ async def add_log(log):
 
     # Convert time to utc
     log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
+
+    # Get fight duration
+    t = datetime.strptime(data["duration"], "%Mm %Ss %fms")
+    log_db.duration = time(minute=t.minute, second=t.second, microsecond=t.microsecond)
 
     # Parse json data for each player
     for player in data["players"]:

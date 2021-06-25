@@ -5,6 +5,7 @@ import os
 import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
+from sqlalchemy import func
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -119,8 +120,14 @@ class LogManager(commands.Cog, name="LogManager"):
             db.commit()
         await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
 
-    @log.command(name="stats", help="Show some general stats about the logs")
+    @log.group(name="stats", help="Log stats")
     async def stats(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help("log stats")
+            print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
+
+    @stats.command(name="general", help="Show some general stats about the logs")
+    async def stats_general(self, ctx):
         embed = Embed(title="Log Stats", color=0x0099ff)
         embed.add_field(name="Logs:", value=db.query(Log).count())
         embed.add_field(name="Distinct Accounts:", value=db.query(Player.account).distinct().count())
@@ -135,6 +142,33 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Average group damage:", value=str(round(db.query(func.sum(Player.damage)).all()[0][0] /
                                                                       db.query(Log.link).distinct().count())))
 
+        await ctx.send(embed=embed)
+
+    @stats.command(name="boss", help="Show boss specific stats", usage="<boss>")
+    async def stats_boss(self, ctx, boss):
+        if boss in boss_abrv:
+            boss = boss_abrv[boss]
+        query = db.query(Log).join(Player)
+        query = query.filter(Log.fight_name.ilike(boss))
+
+        # Create embed
+        embed = Embed(title=boss, color=0x0099ff)
+
+        # First kill
+        first_kill = query.order_by(Log.date_time.asc()).first()
+        embed.add_field(name="First kill:", value=f"[{first_kill.date_time.strftime('%B %e, %Y')}]({first_kill.link})")
+
+        # Latest kill
+        latest_kill = query.order_by(Log.date_time.desc()).first()
+        embed.add_field(name="Latest kill:", value=f"[{latest_kill.date_time.strftime('%B %e, %Y')}]({latest_kill.link})")
+
+        # Fastest kills
+        query_fastest = query.order_by(Log.duration.asc())
+        val = ""
+        for i in range(0, min(5, query.count())):
+            t = query_fastest[i].duration
+            val += f"[{t.strftime('%Mm %Ss %f')[:-3]}ms]({query_fastest[i].link})\n"
+        embed.add_field(name="Fastest kills:", value=val, inline=False)
         await ctx.send(embed=embed)
 
 
