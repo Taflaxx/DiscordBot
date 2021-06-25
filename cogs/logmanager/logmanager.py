@@ -79,25 +79,26 @@ class LogManager(commands.Cog, name="LogManager"):
             os.remove(filename)
 
         else:
-            # Create Embed
-            # Limited to top 10 logs
+            try:
+                limit = int(limit)
+            except ValueError:
+                await ctx.send("**:x: Invalid limit**")
+                return
+
             embed = Embed(title="Top Logs", color=0x0099ff)
             val = ""
-            for i, row in enumerate(result[:5]):
+            for i in range(0, min(limit, query.count(), 30)):
+                row = query[i]
                 val += f"[{i + 1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                        f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-            embed.add_field(name=f"Sorted by {order} [1-5]:", value=val)
+                # Split into a new field every 5 logs because of character limits
+                if (i + 1) % 5 == 0:
+                    embed.add_field(name=f"Sorted by {order} [{i - 3} - {i+1}]:", value=val)
+                    val = ""
+                # For better formatting (max 2 fields next to each other)
+                if (i + 1) % 10 == 0:
+                    embed.add_field(name="\u200b", value="\u200b")
 
-            val = ""
-            if result[5:10]:
-                for i, row in enumerate(result[5:10]):
-                    val += f"[{i + 6}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
-                           f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-                embed.add_field(name=f"Sorted by {order} [6-10]:", value=val)
-
-            embed.add_field(name="\u200B",
-                            value="If you find any bugs or your dps seems low you can submit a bugreport "
-                                  "[here](https://www.youtube.com/watch?v=d1YBv2mWll0)", inline=False)
             await ctx.send(embed=embed)
 
     @log.command(name="history", help="Search a Discord channel for logs", usage="<channel> [message_limit]")
