@@ -132,4 +132,9 @@ async def filter_args(query, args):
             query = query.order_by(order_obj[order].asc())
         else:
             query = query.order_by(order_obj[order].desc())
+    else:
+        if "-asc" in args:
+            query = query.order_by(Player.dps.asc())
+        else:
+            query = query.order_by(Player.dps.desc())
     return query, order, limit
