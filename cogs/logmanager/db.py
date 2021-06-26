@@ -38,6 +38,8 @@ class Player(Base):
     profession = Column(String)
     dps = Column(Integer)
     damage = Column(Integer)
+    downs = Column(Integer)
+    deaths = Column(Integer)
 
 
 Base.metadata.create_all(engine)
@@ -85,6 +87,8 @@ async def add_log(log):
             if log_db.fight_name == "Twin Largos":  # Because Twin Largos is 2 bosses
                 player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
             player_db.damage = player["defenses"][0]["damageTaken"]
+            player_db.downs = player["defenses"][0]["downCount"]
+            player_db.deaths = player["defenses"][0]["deadCount"]
             log_db.players.append(player_db)
             db.add(player_db)
     db.add(log_db)
