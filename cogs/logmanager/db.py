@@ -82,6 +82,8 @@ async def add_log(log):
             player_db.character = player["name"]
             player_db.profession = player["profession"]
             player_db.dps = player["dpsTargets"][0][0]["dps"]
+            if log_db.fight_name == "Twin Largos":  # Because Twin Largos is 2 bosses
+                player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
             player_db.damage = player["defenses"][0]["damageTaken"]
             log_db.players.append(player_db)
             db.add(player_db)
