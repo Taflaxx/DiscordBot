@@ -120,6 +120,7 @@ class LogManager(commands.Cog, name="LogManager"):
                 log_counter += 1
                 r = await add_log(log)
                 if r is not None:
+                    print(r)
                     errors += 1
             db.commit()
         await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")

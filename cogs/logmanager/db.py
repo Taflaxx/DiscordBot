@@ -58,7 +58,10 @@ async def add_log(log):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://dps.report/getJson?permalink=" + log) as r:
             if r.status == 200:
-                data = await r.json()
+                try:
+                    data = await r.json()
+                except Exception as e:
+                    return f"{log} | {e}"
             else:
                 return f"{log} | {r.status}"
 
