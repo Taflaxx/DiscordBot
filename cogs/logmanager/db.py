@@ -93,15 +93,8 @@ async def add_log(log):
             db.add(player_db)
     db.add(log_db)
 
-order_obj = {"dps": Player.dps,
-             "dmg": Player.damage, "damage": Player.damage,
-             "date": Log.date_time,
-             "time": Log.duration, "duration": Log.duration}
-
 
 async def filter_args(query, args):
-    order = "dps"
-    limit = 10
     for i, arg in enumerate(args):
         if arg == "-a" or arg == "--account":
             query = query.filter(Player.account.ilike(f"%{args[i + 1]}%"))

@@ -132,8 +132,10 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @stats.command(name="general", help="Show some general stats about the logs")
     async def stats_general(self, ctx):
+        # maybe merge "stats general" with "stats boss", add filter
         embed = Embed(title="Log Stats", color=0x0099ff)
-        embed.add_field(name="Logs:", value=db.query(Log).count())
+        total_logs = db.query(Log.link).count()
+        embed.add_field(name="Logs:", value=total_logs)
         embed.add_field(name="Distinct Accounts:", value=db.query(Player.account).distinct().count())
         embed.add_field(name="Distinct Characters:", value=db.query(Player.character).distinct().count())
 
@@ -141,10 +143,18 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Frequent characters:", value=most_frequent_embed(db.query(Player.character).all()))
         embed.add_field(name="Frequent professions:", value=most_frequent_embed(db.query(Player.profession).all()))
 
-        embed.add_field(name="Average group dps:", value=str(round(db.query(func.sum(Player.dps)).all()[0][0] /
-                                                                   db.query(Log.link).distinct().count())))
-        embed.add_field(name="Average group damage:", value=str(round(db.query(func.sum(Player.damage)).all()[0][0] /
-                                                                      db.query(Log.link).distinct().count())))
+        total_players = db.query(Player.id).count()
+        total_dps = db.query(func.sum(Player.dps)).all()[0][0]
+        embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
+
+        total_damage = db.query(func.sum(Player.damage)).all()[0][0]
+        embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
+
+        total_downs = db.query(func.sum(Player.downs)).all()[0][0]
+        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}")
+
+        total_deaths = db.query(func.sum(Player.deaths)).all()[0][0]
+        embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
 
         await ctx.send(embed=embed)
 
