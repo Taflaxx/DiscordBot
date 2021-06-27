@@ -177,9 +177,9 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Latest kill:", value=f"[{latest_kill.date_time.strftime('%B %e, %Y')}]({latest_kill.link})")
 
         # Fastest kills
-        query_fastest = query.order_by(Log.duration.asc())
+        query_fastest = query.distinct(Log.link).order_by(Log.duration.asc())
         val = ""
-        for i in range(0, min(5, query.count())):
+        for i in range(0, min(5, query_fastest.count())):
             t = query_fastest[i].duration
             val += f"[{t.strftime('%Mm %Ss %f')[:-3]}ms]({query_fastest[i].link})\n"
         embed.add_field(name="Fastest kills:", value=val, inline=False)
