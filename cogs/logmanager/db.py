@@ -127,7 +127,19 @@ async def filter_args(query, args):
             query = query.filter(Log.date_time > datetime.fromisoformat(args[i + 1]).astimezone(timezone.utc))
         elif arg == "-before":
             query = query.filter(Log.date_time < datetime.fromisoformat(args[i + 1]).astimezone(timezone.utc))
-        elif arg == "-order":
+    return query
+
+order_obj = {"dps": Player.dps,
+             "dmg": Player.damage, "damage": Player.damage,
+             "date": Log.date_time,
+             "time": Log.duration, "duration": Log.duration}
+
+
+async def order_args(query, args):
+    order = "dps"
+    limit = 10
+    for i, arg in enumerate(args):
+        if arg == "-order":
             order = args[i + 1]
         elif arg == "-limit":
             limit = args[i + 1]

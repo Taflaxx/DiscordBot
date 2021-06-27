@@ -64,7 +64,8 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send_help("log filter")
             return
         query = db.query(Player).join(Log)
-        query, order, limit = await filter_args(query, args)
+        query = await filter_args(query, args)
+        query, order, limit = await order_args(query, args)
 
         if query.count() == 0:
             await ctx.send("**:x: No logs found**")
