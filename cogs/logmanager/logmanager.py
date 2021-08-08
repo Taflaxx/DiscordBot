@@ -100,10 +100,12 @@ class LogManager(commands.Cog, name="LogManager"):
                 if (i + 1) % 5 == 0:
                     embed.add_field(name=f"Sorted by {order} [{i - 3} - {i+1}]:", value=val)
                     val = ""
-                # For better formatting (max 2 fields next to each other)
+                # Make sure embed is added when < 5 logs are left
+                elif i + 1 == query.count():
+                    embed.add_field(name=f"Sorted by {order}:", value=val)
+                # For better formatting (max 2 fields next to each other) add an invisible field
                 if (i + 1) % 10 == 0:
                     embed.add_field(name="\u200b", value="\u200b")
-
             await ctx.send(embed=embed)
 
     @log.command(name="history", help="Search a Discord channel for logs", usage="<channel> [message_limit]")
