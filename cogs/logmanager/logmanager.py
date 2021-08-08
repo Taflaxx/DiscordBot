@@ -204,6 +204,44 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
         await ctx.send(embed=embed)
 
+    @log.command(name="hof")
+    async def hall_of_fame(self, ctx):
+        embed = Embed(title="<:spray:819226756698603600> Hall of Fame", color=0x0099ff)
+
+        emoji = [":one:", ":two:", ":three:"]
+        # Damage
+        _, averages = await get_player_stats(Player.damage)
+        val = ""
+        for i in range(0, 3):
+            val += f"{emoji[i]} **{averages[i][0]}:** {int(averages[i][1])}\n"
+        embed.add_field(name="<:damage:874013315901317140> __Average damage taken:__", value=val, inline=False)
+
+        # Downs
+        downs, averages = await get_player_stats(Player.downs)
+        val = ""
+        for i in range(0, 3):
+            val += f"{emoji[i]} **{downs[i][0]}:** {downs[i][1]}\n"
+        embed.add_field(name="<:down:874013566452252732> __Total downs:__", value=val, inline=False)
+
+        val = ""
+        for i in range(0, 3):
+            val += f"{emoji[i]} **{averages[i][0]}:** {round(averages[i][1], 2)}\n"
+        embed.add_field(name="<:down:874013566452252732> __Average downs:__", value=val, inline=False)
+
+        # Deaths
+        deaths, averages = await get_player_stats(Player.deaths)
+        val = ""
+        for i in range(0, 3):
+            val += f"{emoji[i]} **{deaths[i][0]}:** {deaths[i][1]}\n"
+        embed.add_field(name="<:dead:874013695154466816> __Total deaths:__", value=val, inline=False)
+
+        val = ""
+        for i in range(0, 3):
+            val += f"{emoji[i]} **{averages[i][0]}:** {round(averages[i][1], 2)}\n"
+        embed.add_field(name="<:dead:874013695154466816> __Average deaths:__", value=val, inline=False)
+
+        await ctx.send(embed=embed)
+
 
 def setup(bot):
     bot.add_cog(LogManager(bot))

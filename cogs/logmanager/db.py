@@ -5,8 +5,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
-from cogs.logmanager.utils import boss_abrv
+from sqlalchemy import create_engine, func
+from cogs.logmanager.utils import boss_abrv, sort_dict
 
 # Init DB
 engine = create_engine("sqlite:///cogs/logmanager/logmanager.db", echo=False)
@@ -152,3 +152,25 @@ async def order_args(query, args):
         else:
             query = query.order_by(Player.dps.desc())
     return query, order, limit
+
+
+async def get_player_stats(player_stat, min_appearances=10):
+    stats = {}
+    appearances = {}
+    # Iterate over all distinct accounts
+    for player in db.query(Player.account).distinct():
+        player = player[0]
+        # Count how often the player appears in the logs
+        appearance = db.query(Player.account).filter(Player.account.ilike(player)).count()
+        # Only add players that are in at least [min_appearances] logs (Default: 10)
+        if appearance >= min_appearances:
+            appearances[player] = appearance
+            stats[player] = db.query(func.sum(player_stat)).filter(Player.account.ilike(player)).all()[0][0]
+    # Calculate averages
+    averages = {}
+    for player in appearances.keys():
+        averages[player] = stats[player] / appearances[player]
+    # Sort, convert to a list and reverse the order
+    stats = sort_dict(stats)[::-1]
+    averages = sort_dict(averages)[::-1]
+    return stats, averages

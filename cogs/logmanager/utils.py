@@ -15,3 +15,7 @@ def most_frequent_embed(list, limit=5):
     for i in range(0, limit):
         ret += f"{counter[i][0][0]}: {counter[i][1]}\n"
     return ret
+
+
+def sort_dict(dictionary):
+    return sorted(dictionary.items(), key=lambda x:x[1])#{k: v for k, v in sorted(dictionary.items(), key=lambda item: item[1])}
