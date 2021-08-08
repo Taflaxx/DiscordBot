@@ -154,7 +154,7 @@ async def order_args(query, args):
     return query, order, limit
 
 
-async def get_player_stats(player_stat, min_appearances=10):
+async def get_player_stats(player_stat, min_appearances=50):
     stats = {}
     appearances = {}
     # Iterate over all distinct accounts
