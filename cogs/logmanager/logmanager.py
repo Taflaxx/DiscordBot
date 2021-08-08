@@ -204,9 +204,9 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
         await ctx.send(embed=embed)
 
-    @log.command(name="hof")
-    async def hall_of_fame(self, ctx):
-        embed = Embed(title=f"{self.bot.get_emoji(819226756698603600)} Hall of Fame", color=0x0099ff)
+    @log.command(name="hos")
+    async def hall_of_shame(self, ctx):
+        embed = Embed(title=f"{self.bot.get_emoji(819226756698603600)} Hall of Shame", color=0x0099ff)
         emoji = [":one:", ":two:", ":three:", ":four:", ":five:"]
 
         # Minimum amount of logs per player
