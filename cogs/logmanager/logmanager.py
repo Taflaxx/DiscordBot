@@ -207,36 +207,39 @@ class LogManager(commands.Cog, name="LogManager"):
     @log.command(name="hof")
     async def hall_of_fame(self, ctx):
         embed = Embed(title="<:spray:819226756698603600> Hall of Fame", color=0x0099ff)
+        emoji = [":one:", ":two:", ":three:", ":four:", ":five:"]
 
-        emoji = [":one:", ":two:", ":three:"]
+        # Minimum amount of logs per player
+        limit = min(db.query(Log.link).count()/2, 50)
+
         # Damage
-        _, averages = await get_player_stats(Player.damage)
+        _, averages = await get_player_stats(Player.damage, limit)
         val = ""
-        for i in range(0, 3):
+        for i in range(0, 5):
             val += f"{emoji[i]} **{averages[i][0]}:** {int(averages[i][1])}\n"
         embed.add_field(name="<:damage:874013315901317140> __Average damage taken:__", value=val, inline=False)
 
         # Downs
-        downs, averages = await get_player_stats(Player.downs)
+        downs, averages = await get_player_stats(Player.downs, limit)
         val = ""
-        for i in range(0, 3):
+        for i in range(0, 5):
             val += f"{emoji[i]} **{downs[i][0]}:** {downs[i][1]}\n"
         embed.add_field(name="<:down:874013566452252732> __Total downs:__", value=val, inline=False)
 
         val = ""
-        for i in range(0, 3):
+        for i in range(0, 5):
             val += f"{emoji[i]} **{averages[i][0]}:** {round(averages[i][1], 2)}\n"
         embed.add_field(name="<:down:874013566452252732> __Average downs:__", value=val, inline=False)
 
         # Deaths
-        deaths, averages = await get_player_stats(Player.deaths)
+        deaths, averages = await get_player_stats(Player.deaths, limit)
         val = ""
-        for i in range(0, 3):
+        for i in range(0, 5):
             val += f"{emoji[i]} **{deaths[i][0]}:** {deaths[i][1]}\n"
         embed.add_field(name="<:dead:874013695154466816> __Total deaths:__", value=val, inline=False)
 
         val = ""
-        for i in range(0, 3):
+        for i in range(0, 5):
             val += f"{emoji[i]} **{averages[i][0]}:** {round(averages[i][1], 2)}\n"
         embed.add_field(name="<:dead:874013695154466816> __Average deaths:__", value=val, inline=False)
 
