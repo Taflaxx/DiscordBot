@@ -187,7 +187,7 @@ class LogManager(commands.Cog, name="LogManager"):
         val = ""
         for i in range(0, min(5, query_fastest.count())):
             t = query_fastest[i].duration
-            val += f"[{t.strftime('%Mm %Ss %f')[:-3]}ms]({query_fastest[i].link})\n"
+            val += f"[{t.strftime('%Mm %Ss %f')[:-3]}ms ({query_fastest[i].date_time.strftime('%B %e, %Y')})]({query_fastest[i].link})\n"
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
         # Average DPS
