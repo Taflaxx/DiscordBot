@@ -169,7 +169,7 @@ class LogManager(commands.Cog, name="LogManager"):
         if boss in boss_abrv:
             boss = boss_abrv[boss]
         query = db.query(Log).join(Player)
-        query = query.filter(Log.fight_name.ilike(boss))
+        query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
 
         # Create embed
         embed = Embed(title=boss, color=0x0099ff)
@@ -210,7 +210,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Creating the fight duration plot
         # Query DB into a Pandas dataframe
-        df = pd.read_sql(db.query(Log.date_time, Log.duration).filter(Log.fight_name.ilike(f"%{boss}%"))
+        df = pd.read_sql(db.query(Log.date_time, Log.duration).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
                          .order_by(Log.date_time).statement, db.bind)
         # Convert datetime.time to int seconds
         for i in df.index:
