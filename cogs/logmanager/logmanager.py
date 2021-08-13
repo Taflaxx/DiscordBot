@@ -6,6 +6,9 @@ import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
 from sqlalchemy import func
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -204,7 +207,30 @@ class LogManager(commands.Cog, name="LogManager"):
         # Deaths
         total_deaths = db.query(func.sum(Player.deaths)).join(Log).filter(Log.fight_name.ilike(boss)).all()[0][0]
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
-        await ctx.send(embed=embed)
+
+        # Creating the fight duration plot
+        # Query DB into a Pandas dataframe
+        df = pd.read_sql(db.query(Log.date_time, Log.duration).filter(Log.fight_name.ilike(f"%{boss}%"))
+                         .order_by(Log.date_time).statement, db.bind)
+        # Convert datetime.time to int seconds
+        for i in df.index:
+            df.at[i, "duration"] = (df.at[i, "duration"].hour * 60 + df.at[i, "duration"].minute) * 60 + df.at[i, "duration"].second
+        # Create line plot
+        sns.set_style("darkgrid")
+        sns_plot = sns.lineplot(data=df, x="date_time", y="duration").set_title(boss)
+        plt.ylabel("Fight duration in seconds")
+        plt.xticks(rotation=25)
+        plt.xlabel("Date")
+        plt.tight_layout()
+        # Save plot to file
+        filename = f"{datetime.now(tz=timezone.utc).strftime('plot-%Y%m%d-%H%M%S')}.png"
+        filepath = f"cogs/logmanager/tmp/{filename}"
+        sns_plot.figure.savefig(filepath)
+        # Add file to embed and send it
+        embed.set_image(url=f"attachment://{filename}")
+        await ctx.send(embed=embed, file=File(filepath))
+        # Remove file
+        os.remove(filepath)
 
     @log.command(name="hos")
     async def hall_of_shame(self, ctx):

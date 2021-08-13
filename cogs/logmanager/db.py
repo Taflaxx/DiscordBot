@@ -21,6 +21,7 @@ class Log(Base):
 
     link = Column(String, primary_key=True)
     fight_name = Column(String)
+    # TODO: Change Time to an int when there is a big update to the DB
     duration = Column(Time)
     date_time = Column(DateTime)
     players = relationship("Player", back_populates="log")
