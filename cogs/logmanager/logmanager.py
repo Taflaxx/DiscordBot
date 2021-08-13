@@ -226,6 +226,8 @@ class LogManager(commands.Cog, name="LogManager"):
         filename = f"{datetime.now(tz=timezone.utc).strftime('plot-%Y%m%d-%H%M%S')}.png"
         filepath = f"cogs/logmanager/tmp/{filename}"
         sns_plot.figure.savefig(filepath)
+        # Clear the figure to stop them from stacking on top of each other
+        plt.clf()
         # Add file to embed and send it
         embed.set_image(url=f"attachment://{filename}")
         await ctx.send(embed=embed, file=File(filepath))
