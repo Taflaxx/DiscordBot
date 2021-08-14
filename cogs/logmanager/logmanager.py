@@ -116,7 +116,7 @@ class LogManager(commands.Cog, name="LogManager"):
         messages = await channel.history(limit=limit).flatten()
         log_counter = 0
         errors = 0  # Tracks the number of errors while adding logs
-        for message in messages:
+        for idx, message in enumerate(messages):
             # Find all links to logs in the message
             logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
 
@@ -127,6 +127,8 @@ class LogManager(commands.Cog, name="LogManager"):
                     print(r)
                     errors += 1
             db.commit()
+            print(f"Messages parsed: {idx + 1}/{len(messages)}\n"
+                  f"Logs parsed {log_counter - errors}/{log_counter} ({errors} errors)")
         await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
 
     @log.group(name="stats", help="Log stats")
