@@ -21,7 +21,7 @@ def most_frequent_embed(list, limit=5):
 
 
 def sort_dict(dictionary):
-    return sorted(dictionary.items(), key=lambda x:x[1])#{k: v for k, v in sorted(dictionary.items(), key=lambda item: item[1])}
+    return sorted(dictionary.items(), key=lambda x:x[1])
 
 
 def plot_lineplot(data, title):

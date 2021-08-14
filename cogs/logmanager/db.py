@@ -132,7 +132,6 @@ async def add_log(log):
     for buff_map in data["buffMap"]:
         # Check if this buff already exists in DB
         if not db.query(BuffMap.id).filter(BuffMap.id == buff_map[1:]).count() > 0:
-            print(f"Found new buffMap: {buff_map[1:]}")
             buff_map_db = BuffMap(id=buff_map[1:])
             buff_map_db.name = data["buffMap"][buff_map]["name"]
             buff_map_db.icon = data["buffMap"][buff_map]["icon"]
