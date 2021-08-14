@@ -3,7 +3,7 @@ import re
 import aiohttp
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from cogs.logmanager.utils import boss_abrv, sort_dict
@@ -41,11 +41,36 @@ class Player(Base):
     damage = Column(Integer)
     downs = Column(Integer)
     deaths = Column(Integer)
+    buffs = relationship("Buff", back_populates="player")
+
+
+class Buff(Base):
+    __bind_key__ = "logmanager"
+    __tablename__ = "buffs"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"))
+    player = relationship("Player", back_populates="buffs")
+    buff = Column(Integer)
+    uptime = Column(Float)
+
+
+class BuffMap(Base):
+    __bind_key__ = "logmanager"
+    __tablename__ = "buffMaps"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    icon = Column(String)
+    stacking = Column(Boolean)
+    description = Column(String)
 
 
 Base.metadata.create_all(engine)
 Log.__table__.create(bind=engine, checkfirst=True)
 Player.__table__.create(bind=engine, checkfirst=True)
+Buff.__table__.create(bind=engine, checkfirst=True)
+BuffMap.__table__.create(bind=engine, checkfirst=True)
 db.commit()
 
 
@@ -93,9 +118,30 @@ async def add_log(log):
             player_db.damage = player["defenses"][0]["damageTaken"]
             player_db.downs = player["defenses"][0]["downCount"]
             player_db.deaths = player["defenses"][0]["deadCount"]
+            # Add buff uptimes
+            for buff in player["buffUptimesActive"]:
+                buff_db = Buff(buff=buff["id"])
+                buff_db.uptime = buff["buffData"][0]["uptime"]
+                player_db.buffs.append(buff_db)
+                db.add(buff_db)
             log_db.players.append(player_db)
             db.add(player_db)
     db.add(log_db)
+
+    # BuffMap
+    for buff_map in data["buffMap"]:
+        # Check if this buff already exists in DB
+        if not db.query(BuffMap.id).filter(BuffMap.id == buff_map[1:]).count() > 0:
+            print(f"Found new buffMap: {buff_map[1:]}")
+            buff_map_db = BuffMap(id=buff_map[1:])
+            buff_map_db.name = data["buffMap"][buff_map]["name"]
+            buff_map_db.icon = data["buffMap"][buff_map]["icon"]
+            buff_map_db.stacking = data["buffMap"][buff_map]["stacking"]
+            description = ""
+            for d in data["buffMap"][buff_map]["descriptions"]:
+                description += f"{d}\n"
+            buff_map_db.description = description.rstrip()
+            db.add(buff_map_db)
 
 
 async def filter_args(query, args):
