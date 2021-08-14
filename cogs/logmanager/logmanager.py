@@ -6,9 +6,8 @@ import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
 from sqlalchemy import func
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
+import difflib
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -216,18 +215,8 @@ class LogManager(commands.Cog, name="LogManager"):
         for i in df.index:
             df.at[i, "duration"] = (df.at[i, "duration"].hour * 60 + df.at[i, "duration"].minute) * 60 + df.at[i, "duration"].second
         # Create line plot
-        sns.set_style("darkgrid")
-        sns_plot = sns.lineplot(data=df, x="date_time", y="duration").set_title(boss)
-        plt.ylabel("Fight duration in seconds")
-        plt.xticks(rotation=25)
-        plt.xlabel("Date")
-        plt.tight_layout()
-        # Save plot to file
-        filename = f"{datetime.now(tz=timezone.utc).strftime('plot-%Y%m%d-%H%M%S')}.png"
-        filepath = f"cogs/logmanager/tmp/{filename}"
-        sns_plot.figure.savefig(filepath)
-        # Clear the figure to stop them from stacking on top of each other
-        plt.clf()
+        df.columns = ["Date", "Fight duration in seconds"]
+        filepath, filename = plot_lineplot(df, boss)
         # Add file to embed and send it
         embed.set_image(url=f"attachment://{filename}")
         await ctx.send(embed=embed, file=File(filepath))
@@ -274,6 +263,62 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name=f"{self.bot.get_emoji(874013695154466816)} __Average deaths:__", value=val, inline=False)
 
         await ctx.send(embed=embed)
+
+    @log.command(name="buff")
+    async def buff(self, ctx, boss, buff):
+        buff_matches = None
+        if boss in boss_abrv:
+            boss = boss_abrv[boss]
+
+        # Check for valid Buff
+        buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(f"%{buff}%")).all()
+        if len(buff_map) == 0:
+            await ctx.send(f":x: No buff \"{buff}\" found")
+            return
+        # If more than 1 match select the closest
+        elif len(buff_map) > 1:
+            # Create list of buff names
+            buff_matches = []
+            for b in buff_map:
+                buff_matches.append(b.name)
+            # Calculate closest matching buff
+            closest = difflib.get_close_matches(buff, buff_matches, 1, 0.1)
+            # Return if no closest match could be determined
+            if not closest:
+                await ctx.send(":x: Please be more specific with the buff")
+                return
+            # Assign closest match
+            closest = closest[0]
+            buff_matches.remove(closest)
+            buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(closest)).all()
+
+        # Join Tables, filter by boss and buff, group by Log.link
+        query = db.query(Log.date_time, func.avg(Buff.uptime)).join(Player, Log.players).join(Buff, Player.buffs) \
+            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
+            .filter(Buff.buff == buff_map[0].id).group_by(Log.link).statement
+
+        # Create dataframe
+        df = pd.read_sql(query, db.bind)
+        df.columns = ["Date", f"{buff_map[0].name} uptime"]
+
+        # Create embed
+        embed = Embed(title=f"{buff_map[0].name} on {boss}", color=0x0099ff)
+        embed.set_thumbnail(url=buff_map[0].icon)
+        embed.add_field(name="**Description:**", value=buff_map[0].description, inline=False)
+        if buff_matches:
+            embed.set_footer(text=f"Similar buffs: {', '.join(buff_matches)}")
+        # Check if dataframe actually contains any data
+        if df.empty:
+            embed.add_field(name="**No data found**", value=f"{buff_map[0].name} does not exist in any {boss} logs.")
+            await ctx.send(embed=embed)
+        else:
+            # Create line plot and add it to embed
+            filepath, filename = plot_lineplot(df, boss)
+            embed.set_image(url=f"attachment://{filename}")
+            # Suggest other close matches
+            await ctx.send(embed=embed, file=File(filepath))
+            # Remove file
+            os.remove(filepath)
 
 
 def setup(bot):

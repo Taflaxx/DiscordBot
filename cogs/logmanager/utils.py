@@ -1,4 +1,7 @@
 from collections import Counter
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime, timezone
 
 # Boss name abbreviations for easier searching
 boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious", "vg": "Vale Guardian",
@@ -19,3 +22,18 @@ def most_frequent_embed(list, limit=5):
 
 def sort_dict(dictionary):
     return sorted(dictionary.items(), key=lambda x:x[1])#{k: v for k, v in sorted(dictionary.items(), key=lambda item: item[1])}
+
+
+def plot_lineplot(data, title):
+    # Plot
+    sns.set_style("darkgrid")
+    sns_plot = sns.lineplot(data=data, x=data.columns[0], y=data.columns[1]).set_title(title)
+    plt.xticks(rotation=25)
+    plt.tight_layout()
+    # Save plot to file
+    filename = f"{datetime.now(tz=timezone.utc).strftime('plot-%Y%m%d-%H%M%S')}.png"
+    filepath = f"cogs/logmanager/tmp/{filename}"
+    sns_plot.figure.savefig(filepath)
+    # Clear the figure to stop them from stacking on top of each other
+    plt.clf()
+    return filepath, filename

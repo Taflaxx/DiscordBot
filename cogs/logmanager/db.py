@@ -137,10 +137,11 @@ async def add_log(log):
             buff_map_db.name = data["buffMap"][buff_map]["name"]
             buff_map_db.icon = data["buffMap"][buff_map]["icon"]
             buff_map_db.stacking = data["buffMap"][buff_map]["stacking"]
-            description = ""
-            for d in data["buffMap"][buff_map]["descriptions"]:
-                description += f"{d}\n"
-            buff_map_db.description = description.rstrip()
+            if "descriptions" in data["buffMap"][buff_map]:
+                description = ""
+                for d in data["buffMap"][buff_map]["descriptions"]:
+                    description += f"{d}\n"
+                buff_map_db.description = description.rstrip()
             db.add(buff_map_db)
 
 
