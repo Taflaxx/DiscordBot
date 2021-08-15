@@ -25,11 +25,12 @@ def sort_dict(dictionary):
     return sorted(dictionary.items(), key=lambda x:x[1])
 
 
-def plot_lineplot(data, title, hue=None):
+def plot_lineplot(data, title, hue=None, format_percent=False):
     # Plot
     sns.set_style("darkgrid")
     sns_plot = sns.lineplot(data=data, x=data.columns[0], y=data.columns[1], hue=hue).set_title(title)
-    plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
+    if format_percent:
+        plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
     plt.xticks(rotation=25)
     plt.tight_layout()
     # Save plot to file

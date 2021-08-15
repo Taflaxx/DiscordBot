@@ -340,7 +340,7 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send(embed=embed)
         else:
             # Create line plot and add it to embed
-            filepath, filename = plot_lineplot(df, boss, "Boon")
+            filepath, filename = plot_lineplot(df, boss, "Boon", True)
             embed.set_image(url=f"attachment://{filename}")
             # Suggest other close matches
             await ctx.send(embed=embed, file=File(filepath))
