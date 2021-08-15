@@ -1,5 +1,6 @@
 from collections import Counter
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import seaborn as sns
 from datetime import datetime, timezone
 
@@ -24,10 +25,11 @@ def sort_dict(dictionary):
     return sorted(dictionary.items(), key=lambda x:x[1])
 
 
-def plot_lineplot(data, title):
+def plot_lineplot(data, title, hue=None):
     # Plot
     sns.set_style("darkgrid")
-    sns_plot = sns.lineplot(data=data, x=data.columns[0], y=data.columns[1]).set_title(title)
+    sns_plot = sns.lineplot(data=data, x=data.columns[0], y=data.columns[1], hue=hue).set_title(title)
+    plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
     plt.xticks(rotation=25)
     plt.tight_layout()
     # Save plot to file

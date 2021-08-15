@@ -5,7 +5,7 @@ import os
 import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
-from sqlalchemy import func
+from sqlalchemy import func, column
 import pandas as pd
 import difflib
 
@@ -267,55 +267,80 @@ class LogManager(commands.Cog, name="LogManager"):
         await ctx.send(embed=embed)
 
     @log.command(name="buff")
-    async def buff(self, ctx, boss, buff):
-        buff_matches = None
+    async def buff(self, ctx, boss, *buffs):
+        # If no buffs were specified fall back to default
+        if not buffs:
+            buffs = ["Might", "Quickness", "Alacrity"]
         if boss in boss_abrv:
             boss = boss_abrv[boss]
-
-        # Check for valid Buff
-        buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(f"%{buff}%")).all()
-        if len(buff_map) == 0:
-            await ctx.send(f":x: No buff \"{buff}\" found")
-            return
-        # If more than 1 match select the closest
-        elif len(buff_map) > 1:
-            # Create list of buff names
-            buff_matches = []
-            for b in buff_map:
-                buff_matches.append(b.name)
-            # Calculate closest matching buff
-            closest = difflib.get_close_matches(buff, buff_matches, 1, 0.1)
-            # Return if no closest match could be determined
-            if not closest:
-                await ctx.send(":x: Please be more specific with the buff")
-                return
-            # Assign closest match
-            closest = closest[0]
-            buff_matches.remove(closest)
-            buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(closest)).all()
-
-        # Join Tables, filter by boss and buff, group by Log.link
-        query = db.query(Log.date_time, func.avg(Buff.uptime)).join(Player, Log.players).join(Buff, Player.buffs) \
-            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
-            .filter(Buff.buff == buff_map[0].id).group_by(Log.link).statement
-
-        # Create dataframe
-        df = pd.read_sql(query, db.bind)
-        df.columns = ["Date", f"{buff_map[0].name} uptime"]
-
+        data = []
         # Create embed
-        embed = Embed(title=f"{buff_map[0].name} on {boss}", color=0x0099ff)
-        embed.set_thumbnail(url=buff_map[0].icon)
-        embed.add_field(name="**Description:**", value=buff_map[0].description, inline=False)
-        if buff_matches:
-            embed.set_footer(text=f"Similar buffs: {', '.join(buff_matches)}")
+        embed = Embed(title=f"Buffs on {boss}", color=0x0099ff)
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/818529609330851910.gif?v=1")
+
+        # Create dataset
+        for buff in buffs:
+            # Check for valid Buff
+            buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(f"%{buff}%")).all()
+            closest = []
+            # If no Buff was found add en embed message and skip to next item
+            if len(buff_map) == 0:
+                embed.add_field(name="**Error**", value=f"Buff \"{buff}\" was not found.", inline=False)
+                continue
+            # If more than 1 match select the closest
+            elif len(buff_map) > 1:
+                # Create list of buff names
+                buff_matches = []
+                for b in buff_map:
+                    buff_matches.append(b.name)
+                # Calculate closest matching buff
+                closest = difflib.get_close_matches(buff, buff_matches, 4, cutoff=0.1)
+                # Return if no closest match could be determined
+                if not closest:
+                    embed.add_field(name="**Error**", value=f"Buff \"{buff}\" was not specific enough.", inline=False)
+                    continue
+                # Assign closest match
+                buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(closest[0])).all()
+                closest.remove(closest[0])
+
+            # Join Tables, filter by boss and buff, group by Log.link
+            query = db.query(Log.date_time, func.avg(Buff.uptime), column(buff_map[0].name)).join(Player, Log.players).join(Buff, Player.buffs) \
+                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
+                .filter(Buff.buff == buff_map[0].id).group_by(Log.link).all()
+            if len(query) < 2:
+                embed.add_field(name="**Error**", value=f"Not enough data for  \"{buff_map[0].name}\".", inline=False)
+            else:
+                # Convert query output to array for pandas
+                for q in query:
+                    # Multiply Might with 4 for better graphs since it only goes up to 25
+                    if buff_map[0].name == "Might":
+                        data.append([q[0], q[1] * 4, q[2]])
+                    else:
+                        data.append([q[0], q[1], q[2]])
+                # Add buff description to embed
+                description = buff_map[0].description
+                # Suggest similarly spelled buffs in case the bot chose the wrong one
+                if len(closest) > 0:
+                    description += f"\nSimilar buffs: `"
+                    for c in closest:
+                        description += f"{c}, "
+                    description = description.rstrip(", ")
+                    description += "`"
+                embed.add_field(name=f"**{buff_map[0].name}:**", value=description, inline=False)
+
+        # Create dataframe from data
+        df = pd.DataFrame(data, columns=["Date", "Uptime", "Boon"])
+        # Update embed if there was only 1 valid buff selected
+        if len(df["Boon"].unique()) == 1:
+            buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(df["Boon"][0])).all()
+            embed.set_thumbnail(url=buff_map[0].icon)
+            embed.title = f"{buff_map[0].name} on {boss}"
         # Check if dataframe actually contains any data
         if df.empty:
-            embed.add_field(name="**No data found**", value=f"{buff_map[0].name} does not exist in any {boss} logs.")
             await ctx.send(embed=embed)
         else:
             # Create line plot and add it to embed
-            filepath, filename = plot_lineplot(df, boss)
+            filepath, filename = plot_lineplot(df, boss, "Boon")
             embed.set_image(url=f"attachment://{filename}")
             # Suggest other close matches
             await ctx.send(embed=embed, file=File(filepath))
