@@ -112,9 +112,14 @@ async def add_log(log):
             player_db = Player(account=player["account"])
             player_db.character = player["name"]
             player_db.profession = player["profession"]
-            player_db.dps = player["dpsTargets"][0][0]["dps"]
-            if log_db.fight_name == "Twin Largos":  # Because Twin Largos is 2 bosses
-                player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
+            # Special case for Dhuum to ignore the long pre-event
+            # Only include "Dhuum Fight"
+            if log_db.fight_name.startswith("Dhuum"):
+                player_db.dps = player["dpsTargets"][0][3]["dps"]
+            else:
+                player_db.dps = player["dpsTargets"][0][0]["dps"]
+                if log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
+                    player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
             player_db.damage = player["defenses"][0]["damageTaken"]
             player_db.downs = player["defenses"][0]["downCount"]
             player_db.deaths = player["defenses"][0]["deadCount"]
