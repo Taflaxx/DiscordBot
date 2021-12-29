@@ -347,10 +347,18 @@ class LogManager(commands.Cog, name="LogManager"):
             # Remove file
             os.remove(filepath)
 
-    @log.command(name="mech")
+    @log.command(name="mech", help="Show mechanic stats", usage="<boss> [mechanic]")
     async def mech(self, ctx, boss, mechanic=None):
         if boss in boss_abrv:
             boss = boss_abrv[boss]
+
+        # Check if boss exists in db
+        boss = db.query(Log.fight_name).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
+        if not boss:
+            await ctx.send_help("log mech")
+            return
+        else:
+            boss = boss[0]
 
         embed = Embed(title=f"Mechanics on {boss}", color=0x0099ff)
         if mechanic:
