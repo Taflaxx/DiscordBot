@@ -347,6 +347,55 @@ class LogManager(commands.Cog, name="LogManager"):
             # Remove file
             os.remove(filepath)
 
+    @log.command(name="mech")
+    async def mech(self, ctx, boss, mechanic=None):
+        if boss in boss_abrv:
+            boss = boss_abrv[boss]
+
+        embed = Embed(title=f"Mechanics on {boss}", color=0x0099ff)
+        if mechanic:
+            # List of all mechs on the boss
+            mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics).distinct(Mechanic.description)\
+                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                .filter(Mechanic.description.ilike(f"%{mechanic}%")).all()
+
+            # Query 3 first matches
+            for mech in mech_query[:3]:
+                # Total amount of mechanic triggers for each player
+                player_query = db.query(Log.fight_name, Player.account, Mechanic.description, func.sum(Mechanic.amount)).join(Player, Log.players).join(Mechanic, Player.mechanics)\
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                    .filter(Mechanic.description.ilike(f"{mech[0]}")).group_by(Player.account)\
+                    .order_by(func.sum(Mechanic.amount).desc()).limit(5).all()
+
+                # Total amount of mechanic triggers
+                total_query = db.query(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount)).join(Player, Log.players).join(Mechanic, Player.mechanics)\
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                    .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
+
+                description = f"**Total:** {total_query[0][2]}"
+                for player in player_query:
+                    description += f"\n{player[1]}: {player[3]}"
+                embed.add_field(name=f"__{mech[0]}:__", value=description, inline=False)
+            await ctx.send(embed=embed)
+
+        # If no mechanic was specified
+        else:
+            # List of all mechs on the boss
+            mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics).distinct(Mechanic.description)\
+                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
+
+            # Number of logs of the specified boss
+            fight_number = db.query(Log.fight_name).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).count()
+
+            for mech in mech_query:
+                # Total amount of mechanic triggers
+                total_query = db.query(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount))\
+                    .join(Player, Log.players).join(Mechanic, Player.mechanics)\
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                    .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
+                embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
+            await ctx.send(embed=embed)
+
 
 def setup(bot):
     bot.add_cog(LogManager(bot))

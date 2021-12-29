@@ -42,6 +42,7 @@ class Player(Base):
     downs = Column(Integer)
     deaths = Column(Integer)
     buffs = relationship("Buff", back_populates="player")
+    mechanics = relationship("Mechanic", back_populates="player")
 
 
 class Buff(Base):
@@ -53,6 +54,18 @@ class Buff(Base):
     player = relationship("Player", back_populates="buffs")
     buff = Column(Integer)
     uptime = Column(Float)
+
+
+class Mechanic(Base):
+    __bind_key__ = "logmanager"
+    __tablename__ = "mechanics"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"))
+    player = relationship("Player", back_populates="mechanics")
+    name = Column(String)
+    description = Column(String)
+    amount = Column(Integer)
 
 
 class BuffMap(Base):
@@ -123,12 +136,26 @@ async def add_log(log):
             player_db.damage = player["defenses"][0]["damageTaken"]
             player_db.downs = player["defenses"][0]["downCount"]
             player_db.deaths = player["defenses"][0]["deadCount"]
+
             # Add buff uptimes
             for buff in player["buffUptimesActive"]:
                 buff_db = Buff(buff=buff["id"])
                 buff_db.uptime = buff["buffData"][0]["uptime"]
                 player_db.buffs.append(buff_db)
                 db.add(buff_db)
+
+            # Add mechanics
+            for mech in data["mechanics"]:
+                mech_db = Mechanic(name=mech["name"], description=mech["description"], amount=0)
+                for mech_data in mech["mechanicsData"]:
+                    if mech_data["actor"] == player_db.character:
+                        mech_db.amount += 1
+                # Only add mech if player interacted with it
+                if mech_db.amount > 0:
+                    player_db.mechanics.append(mech_db)
+                    db.add(mech_db)
+
+            # Add to DB
             log_db.players.append(player_db)
             db.add(player_db)
     db.add(log_db)
