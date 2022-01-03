@@ -348,7 +348,7 @@ class LogManager(commands.Cog, name="LogManager"):
             os.remove(filepath)
 
     @log.command(name="mech", help="Show mechanic stats", usage="<boss> [mechanic]")
-    async def mech(self, ctx, boss, mechanic=None):
+    async def mech(self, ctx, boss, *mechanics):
         if boss in boss_abrv:
             boss = boss_abrv[boss]
 
@@ -359,33 +359,9 @@ class LogManager(commands.Cog, name="LogManager"):
             return
 
         embed = Embed(title=f"Mechanics on {boss}", color=0x0099ff)
-        if mechanic:
-            # List of all mechs on the boss
-            mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics).distinct(Mechanic.description)\
-                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
-                .filter(Mechanic.description.ilike(f"%{mechanic}%")).all()
-
-            # Query 3 first matches
-            for mech in mech_query[:3]:
-                # Total amount of mechanic triggers for each player
-                player_query = db.query(Log.fight_name, Player.account, Mechanic.description, func.sum(Mechanic.amount)).join(Player, Log.players).join(Mechanic, Player.mechanics)\
-                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
-                    .filter(Mechanic.description.ilike(f"{mech[0]}")).group_by(Player.account)\
-                    .order_by(func.sum(Mechanic.amount).desc()).limit(5).all()
-
-                # Total amount of mechanic triggers
-                total_query = db.query(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount)).join(Player, Log.players).join(Mechanic, Player.mechanics)\
-                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
-                    .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
-
-                description = f"**Total:** {total_query[0][2]}"
-                for player in player_query:
-                    description += f"\n{player[1]}: {player[3]}"
-                embed.add_field(name=f"__{mech[0]}:__", value=description, inline=False)
-            await ctx.send(embed=embed)
 
         # If no mechanic was specified
-        else:
+        if not mechanics:
             # List of all mechs on the boss
             mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics).distinct(Mechanic.description)\
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
@@ -402,6 +378,81 @@ class LogManager(commands.Cog, name="LogManager"):
                 embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
             await ctx.send(embed=embed)
 
+        else:
+            # Create dataset
+            data = []
+            for mechanic in mechanics:
+                # Check for valid Mechanic
+                mechanic_map = db.query(Mechanic) \
+                    .join(Player, Log.players) \
+                    .join(Mechanic, Player.mechanics) \
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
+                    .filter(Mechanic.description.ilike(f"%{mechanic}%")).all()
+                closest = []
+                # If no Mechanic was found add en embed message and skip to next item
+                if len(mechanic_map) == 0:
+                    embed.add_field(name="**Error**", value=f"Mechanic \"{mechanic}\" on boss \"{boss}\" was not found .", inline=False)
+                    continue
+                # If more than 1 match select the closest
+                elif len(mechanic_map) > 1:
+                    # Create list of buff names
+                    mechanic_matches = []
+                    for b in mechanic_map:
+                        mechanic_matches.append(b.description)
+                    # Calculate closest matching mechanic
+                    closest = difflib.get_close_matches(mechanic, mechanic_matches, 4, cutoff=0.1)
+                    # Return if no closest match could be determined
+                    if not closest:
+                        embed.add_field(name="**Error**", value=f"Mechanic \"{mechanic}\" was not specific enough.",
+                                        inline=False)
+                        continue
+                    # Assign closest match
+                    mechanic_map = db.query(Mechanic).filter(Mechanic.description.ilike(closest[0])).all()
+                    closest.remove(closest[0])
+
+                # Join Tables, filter by boss and mechanic, group by Log.link
+                query = db.query(Log.date_time, func.sum(Mechanic.amount), column(mechanic_map[0].description))\
+                    .join(Player,Log.players)\
+                    .join(Mechanic, Player.mechanics) \
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
+                    .filter(Mechanic.description == mechanic_map[0].description).group_by(Log.link).all()
+                if len(query) < 2:
+                    embed.add_field(name="**Error**", value=f"Not enough data for  \"{mechanic_map[0].name}\".",
+                                    inline=False)
+                else:
+                    # Convert query output to array for pandas
+                    for q in query:
+                        data.append([q[0], q[1], q[2]])
+                    # Add buff description to embed
+                    description = mechanic_map[0].name
+                    """
+                    # Suggest similarly spelled buffs in case the bot chose the wrong one
+                    if len(closest) > 0:
+                        description += f"\nSimilar buffs: `"
+                        for c in closest:
+                            description += f"{c}, "
+                        description = description.rstrip(", ")
+                        description += "`"
+                    """
+                    embed.add_field(name=f"**{mechanic_map[0].description}:**", value=description, inline=False)
+
+            # Create dataframe from data
+            df = pd.DataFrame(data, columns=["Date", "Amount", "Mechanic"])
+            # Update embed if there was only 1 valid buff selected
+            if len(df["Mechanic"].unique()) == 1:
+                mechanic_map = db.query(Mechanic).filter(Mechanic.description.ilike(df["Mechanic"][0])).all()
+                embed.title = f"{mechanic_map[0].description} on {boss}"
+            # Check if dataframe actually contains any data
+            if df.empty:
+                await ctx.send(embed=embed)
+            else:
+                # Create line plot and add it to embed
+                filepath, filename = plot_lineplot(df, boss, "Mechanic", False)
+                embed.set_image(url=f"attachment://{filename}")
+                # Suggest other close matches
+                await ctx.send(embed=embed, file=File(filepath))
+                # Remove file
+                os.remove(filepath)
 
 def setup(bot):
     bot.add_cog(LogManager(bot))
