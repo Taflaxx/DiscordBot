@@ -192,21 +192,21 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
         # Average DPS
-        total_logs = db.query(Log.link).filter(Log.fight_name.ilike(boss)).count()
-        total_players = db.query(Player.id).join(Log).filter(Log.fight_name.ilike(boss)).count()
-        total_dps = db.query(func.sum(Player.dps)).join(Log).filter(Log.fight_name.ilike(boss)).all()[0][0]
+        total_logs = db.query(Log.link).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
+        total_players = db.query(Player.id).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
+        total_dps = db.query(func.sum(Player.dps)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
 
         # Average Damage
-        total_damage = db.query(func.sum(Player.damage)).join(Log).filter(Log.fight_name.ilike(boss)).all()[0][0]
+        total_damage = db.query(func.sum(Player.damage)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
         # Downs
-        total_downs = db.query(func.sum(Player.downs)).join(Log).filter(Log.fight_name.ilike(boss)).all()[0][0]
+        total_downs = db.query(func.sum(Player.downs)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}", inline=False)
 
         # Deaths
-        total_deaths = db.query(func.sum(Player.deaths)).join(Log).filter(Log.fight_name.ilike(boss)).all()[0][0]
+        total_deaths = db.query(func.sum(Player.deaths)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
 
         # Creating the fight duration plot
