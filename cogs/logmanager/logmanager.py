@@ -421,10 +421,17 @@ class LogManager(commands.Cog, name="LogManager"):
                                     inline=False)
                 else:
                     # Convert query output to array for pandas
+                    log_list = []
                     for q in query:
                         data.append([q[0], q[1], q[2]])
+                        log_list.append(q[0])
                     # Add buff description to embed
                     description = mechanic_map[0].name
+                    # Get all logs where mechanic was not triggered and add them with the amount 0 to the data
+                    log_query = db.query(Log.date_time).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
+                    for log in log_query:
+                        if log[0] not in log_list:
+                            data.append([log[0], 0, mechanic_map[0].description])
                     """
                     # Suggest similarly spelled buffs in case the bot chose the wrong one
                     if len(closest) > 0:
