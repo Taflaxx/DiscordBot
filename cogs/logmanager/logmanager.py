@@ -1,3 +1,4 @@
+import configparser
 from discord.ext import commands
 from discord import Embed, File, TextChannel
 import logging
@@ -135,6 +136,86 @@ class LogManager(commands.Cog, name="LogManager"):
             print(f"Messages parsed: {idx + 1}/{len(messages)}\n"
                   f"Logs parsed {log_counter - errors}/{log_counter} ({errors} errors)")
         await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
+
+    @log.command(name="weekly", help="Add weekly clear logs from the configured channel")
+    async def weekly(self, ctx):    #TODO: Add more weekly stats (clear time...)
+        # Get configured channel
+        config = configparser.ConfigParser()
+        config.read("config.ini")
+        channel = None
+        if config.has_section("LogManager"):
+            if config.has_option("LogManager", "WeeklyChannel"):
+                channel = self.bot.get_channel(int(config["LogManager"]["WeeklyChannel"]))
+
+        # Return if channel has not been configured
+        if not channel:
+            await ctx.send("Please configure the weekly clear channel before using this command: \n"
+                           f"{config['Bot']['prefix']}log config weekly <channel>")
+            return
+
+        # Load latest message
+        messages = await channel.history(limit=1).flatten()
+
+        # Find all links to logs in the message
+        logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", messages[0].content)
+        message = await ctx.send(f"Found {len(logs)} logs:")
+
+        errors = 0  # Tracks the number of errors while adding logs
+        added_logs = []
+
+        for log in logs:
+            r = await add_log(log)
+            if r is not None:
+                errors += 1
+                await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
+            else:
+                added_logs.append(log)
+        db.commit()
+        await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
+
+        # Check for new records
+        records = ""
+        for log in added_logs:
+            # Get log from db
+            log_db = db.query(Log).filter(Log.link.ilike(log)).first()
+
+            # Get logs from boss
+            boss = log_db.fight_name
+            query = db.query(Log)
+            query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
+
+            # Check if kill is a new record
+            query_fastest = query.distinct(Log.link).order_by(Log.duration.asc())
+            if query_fastest.first().link == log and query_fastest.count() > 1:
+                records += f"**{log_db.fight_name}:** {log_db.duration.strftime('%Mm %Ss %f')[:-3]}ms " \
+                           f"(Previously {query_fastest[1].duration.strftime('%Mm %Ss %f')[:-3]}ms)\n"
+
+        if records != "":
+            record_count = records.count('\n')
+            if record_count == 1:
+                records = f"**{record_count} new record in this weekly clear:**\n\n{records}"
+            else:
+                records = f"**{record_count} new records in this weekly clear:**\n\n{records}"
+            await ctx.send(records)
+
+    @commands.is_owner()
+    @log.group(name="config", help="Configure the logs cog")
+    async def config(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help("log config")
+            print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
+
+    @config.command(name="weekly")
+    async def config_weekly(self, ctx, channel: TextChannel):
+        # Set configured channel
+        config = configparser.ConfigParser()
+        config.read("config.ini")
+        if not config.has_section("LogManager"):
+            config.add_section("LogManager")
+        config.set("LogManager", "WeeklyChannel", str(channel.id))
+
+        with open("config.ini", 'w') as configfile:
+            config.write(configfile)
 
     @log.group(name="stats", help="Log stats")
     async def stats(self, ctx):
