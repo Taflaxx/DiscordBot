@@ -113,9 +113,14 @@ class LogManager(commands.Cog, name="LogManager"):
     @log.command(name="history", help="Search a Discord channel for logs", usage="<channel> [message_limit]")
     @commands.is_owner()
     async def parse_channel(self, ctx, channel: TextChannel, limit: int = 100):
+        # Get messages
         messages = await channel.history(limit=limit).flatten()
-        log_counter = 0
-        errors = 0  # Tracks the number of errors while adding logs
+
+        # Send confirmation message
+        await ctx.send(f"Found {len(messages)} messages")
+
+        log_counter = 0     # Tracks the number of logs in the messages
+        errors = 0          # Tracks the number of errors while adding logs
         for idx, message in enumerate(messages):
             # Find all links to logs in the message
             logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
