@@ -12,6 +12,8 @@ boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious",
              "q1": "Qadim", "q2": "Qadim the Peerless", "qtp": "Qadim the Peerless", "sabir": "Cardinal Sabir",
              "adina": "Cardinal Adina"}
 
+rank_emojis = {1: ":first_place:", 2: ":second_place:", 3: ":third_place:"}
+
 
 def most_frequent_embed(list, limit=5):
     counter = Counter(list).most_common()
@@ -40,3 +42,21 @@ def plot_lineplot(data, title, hue=None, format_percent=False):
     # Clear the figure to stop them from stacking on top of each other
     plt.clf()
     return filepath, filename
+
+
+# Splits log text into multiple embed fields under one title
+def split_embed(embed, title, text):
+    text = text.splitlines(keepends=True)
+    text_short = ""
+    for line in text:
+        if (len(text_short) + len(line)) <= 1024:
+            text_short += line
+        else:
+            embed.add_field(name=title, value=text_short, inline=False)
+            text_short = line
+            title = "\u200b"    # Invisible character to not repeat title
+
+    if text_short != "":
+        embed.add_field(name=title, value=text_short, inline=False)
+
+    return embed

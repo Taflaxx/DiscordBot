@@ -9,6 +9,7 @@ from cogs.logmanager.db import *
 from sqlalchemy import func, column
 import pandas as pd
 import difflib
+from datetime import datetime, timezone, timedelta
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -138,7 +139,7 @@ class LogManager(commands.Cog, name="LogManager"):
         await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
 
     @log.command(name="weekly", help="Add weekly clear logs from the configured channel")
-    async def weekly(self, ctx):    #TODO: Add more weekly stats (clear time...)
+    async def weekly(self, ctx):
         # Get configured channel
         config = configparser.ConfigParser()
         config.read("config.ini")
@@ -173,8 +174,13 @@ class LogManager(commands.Cog, name="LogManager"):
         db.commit()
         await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
 
+        # Skip looking for records if no logs were added
+        if len(added_logs) == 0:
+            return
+
         # Check for new records
         records = ""
+        records_dps = ""
         for log in added_logs:
             # Get log from db
             log_db = db.query(Log).filter(Log.link.ilike(log)).first()
@@ -184,19 +190,69 @@ class LogManager(commands.Cog, name="LogManager"):
             query = db.query(Log)
             query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
 
-            # Check if kill is a new record
-            query_fastest = query.distinct(Log.link).order_by(Log.duration.asc())
-            if query_fastest.first().link == log and query_fastest.count() > 1:
-                records += f"**{log_db.fight_name}:** {log_db.duration.strftime('%Mm %Ss %f')[:-3]}ms " \
-                           f"(Previously {query_fastest[1].duration.strftime('%Mm %Ss %f')[:-3]}ms)\n"
+            # Check if boss kill is a new record
+            query_fastest = query.distinct(Log.link).order_by(Log.duration.asc()).limit(3).all()
+            if len(query_fastest) > 1:
+                for i in range(0, len(query_fastest)):
+                    if query_fastest[i].link == log:
+                        if i == 0:
+                            # Different text and emoji for first place
+                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {log_db.duration.strftime('%Mm %Ss %f')[:-3]}ms " \
+                                       f"(Old Record: {query_fastest[1].duration.strftime('%Mm %Ss %f')[:-3]}ms)\n"
+                        else:
+                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {log_db.duration.strftime('%Mm %Ss %f')[:-3]}ms " \
+                                       f"(Record: {query_fastest[0].duration.strftime('%Mm %Ss %f')[:-3]}ms)\n"
+                        break
 
-        if records != "":
-            record_count = records.count('\n')
-            if record_count == 1:
-                records = f"**{record_count} new record in this weekly clear:**\n\n{records}"
-            else:
-                records = f"**{record_count} new records in this weekly clear:**\n\n{records}"
-            await ctx.send(records)
+            # Check for new DPS records
+            log_db = db.query(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()).all()
+            # Get highest DPS players
+            query = db.query(Player).join(Log)
+            query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
+            query_dps = query.order_by(Player.dps.desc()).limit(3).all()
+            if len(query_fastest) > 1:
+                for player in log_db:
+                    for i in range(0, len(query_dps)):
+                        if query_dps[i] == player:
+                            records_dps += f"{rank_emojis[i+1]} **{boss}:** {player.dps} DPS by " \
+                                           f"{player.character} - {player.profession}\n"
+                            break
+
+        # Create embed
+        embed = Embed(title="Weekly Clear Stats", color=0x0099ff)
+
+        # Calculate clear time
+        first_kill = db.query(Log).filter(Log.link.ilike(added_logs[0])).first()
+        last_kill = db.query(Log).filter(Log.link.ilike(added_logs[0])).first()
+        for log in added_logs:
+            log_db = db.query(Log).filter(Log.link.ilike(log)).first()
+            if log_db.date_time < first_kill.date_time:
+                first_kill = log_db
+            elif log_db.date_time > last_kill.date_time:
+                last_kill = log_db
+
+        last_kill_duration = timedelta(minutes=last_kill.duration.minute, seconds=last_kill.duration.second,
+                                       microseconds=last_kill.duration.microsecond)
+        end_time = last_kill.date_time + last_kill_duration
+        # Format clear_time since you cant use str format on a timedelta object
+        clear_time = end_time - first_kill.date_time
+        clear_time_hours, remainder = divmod(clear_time.total_seconds(), 3600)
+        clear_time_minutes, clear_time_seconds = divmod(remainder, 60)
+
+        embed.add_field(name=f"Clear Time:",
+                        value=f"{int(clear_time_hours)}h {int(clear_time_minutes)}m {int(clear_time_seconds)}s")
+
+        # Add kill time records
+        if records == "":
+            records = "No new records :Sadge:"
+        embed = split_embed(embed, ":trophy: **Kill Time records in this weekly clear:**", records)
+
+        # Add dps records
+        if records_dps == "":
+            records_dps = "No new records :Sadge:"
+        embed = split_embed(embed, ":trophy: **DPS records in this weekly clear:**", records_dps)
+
+        await ctx.send(embed=embed)
 
     @commands.is_owner()
     @log.group(name="config", help="Configure the logs cog")
@@ -546,6 +602,7 @@ class LogManager(commands.Cog, name="LogManager"):
                 await ctx.send(embed=embed, file=File(filepath))
                 # Remove file
                 os.remove(filepath)
+
 
 def setup(bot):
     bot.add_cog(LogManager(bot))
