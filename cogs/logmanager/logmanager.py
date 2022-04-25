@@ -218,6 +218,23 @@ class LogManager(commands.Cog, name="LogManager"):
                                            f"{player.character} - {player.profession}\n"
                             break
 
+        # Check for stolen "Fiery Greatswords"
+        fgs_stolen = {}
+        for log in added_logs:
+            # Get log from db
+            fgs_logs = db.query(Buff).join(Player).join(Log).filter(Log.link.ilike(log)).filter(Buff.buff.ilike(15792)).all()
+            for player in fgs_logs:
+                # If player has buff and it not an elementalist: fgs was stolen
+                if player.player.profession not in ["Elementalist", "Tempest", "Weaver", "Catalyst"]:
+                    if player.player.account in fgs_stolen:
+                        fgs_stolen[player.player.account] += 1
+                    else:
+                        fgs_stolen[player.player.account] = 1
+
+        fgs_text = ""
+        for account, value in fgs_stolen.items():
+            fgs_text += f"<a:yoink:968193234931175424> {account}: {value}\n"
+
         # Create embed
         embed = Embed(title="Weekly Clear Stats", color=0x0099ff)
 
@@ -244,13 +261,16 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Add kill time records
         if records == "":
-            records = "No new records :Sadge:"
+            records = "No new records <:Sadge:780108805144838145>"
         embed = split_embed(embed, ":trophy: **Kill Time records in this weekly clear:**", records)
 
         # Add dps records
         if records_dps == "":
-            records_dps = "No new records :Sadge:"
+            records_dps = "No new records <:Sadge:780108805144838145>"
         embed = split_embed(embed, ":trophy: **DPS records in this weekly clear:**", records_dps)
+
+        if fgs_stolen != "":
+            embed = split_embed(embed, "<:fgs:968188503424897104> **Fiery Greatswords stolen:**", fgs_text)
 
         await ctx.send(embed=embed)
 
