@@ -363,9 +363,18 @@ class LogManager(commands.Cog, name="LogManager"):
         total_damage = db.query(func.sum(Player.damage)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
+        # Add top DPS
+        top_dps = db.query(Player.character, Player.account, Player.dps, Player.profession, Log.link).join(Log)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
+            .order_by(Player.dps.desc()).all()
+        top_dps_str = ""
+        for i in range(0, 3):
+            top_dps_str += f"[{top_dps[i][2]} DPS by {top_dps[i][0]} ({top_dps[i][1]}) - {top_dps[i][3]}]({top_dps[i][4]})\n"
+        embed.add_field(name="Top DPS:", value=top_dps_str, inline=False)
+
         # Downs
         total_downs = db.query(func.sum(Player.downs)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
-        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}", inline=False)
+        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}")
 
         # Deaths
         total_deaths = db.query(func.sum(Player.deaths)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
