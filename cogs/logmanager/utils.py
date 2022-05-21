@@ -12,6 +12,7 @@ boss_abrv = {"sab": "Sabetha the Saboteur", "gors": "Gorseval the Multifarious",
              "q1": "Qadim", "q2": "Qadim the Peerless", "qtp": "Qadim the Peerless", "sabir": "Cardinal Sabir",
              "adina": "Cardinal Adina"}
 
+
 rank_emojis = {1: ":first_place:", 2: ":second_place:", 3: ":third_place:"}
 
 

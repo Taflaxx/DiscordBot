@@ -5,7 +5,7 @@ class Owner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.group(name="owner", hidden=True)
+    @commands.hybrid_group(name="owner", hidden=True)
     @commands.is_owner()
     async def owner(self, ctx):
         if ctx.invoked_subcommand is None:
@@ -23,7 +23,7 @@ class Owner(commands.Cog):
     @commands.is_owner()
     async def load_cog(self, ctx, cog):
         try:
-            self.bot.load_extension("cogs." + cog)
+            await self.bot.load_extension("cogs." + cog)
             await ctx.send(f"**`SUCCESS:`** Loaded {cog}")
         except Exception as e:
             await ctx.send(f"**`ERROR:`** Failed to load {cog}: {e}")
@@ -32,7 +32,7 @@ class Owner(commands.Cog):
     @commands.is_owner()
     async def unload_cog(self, ctx, cog):
         try:
-            self.bot.unload_extension("cogs." + cog)
+            await self.bot.unload_extension("cogs." + cog)
             await ctx.send(f"**`SUCCESS:`** Unloaded {cog}")
         except Exception as e:
             await ctx.send(f"**`ERROR:`** Failed to unload {cog}: {e}")
@@ -41,8 +41,8 @@ class Owner(commands.Cog):
     @commands.is_owner()
     async def reload_cog(self, ctx, cog):
         try:
-            self.bot.unload_extension("cogs." + cog)
-            self.bot.load_extension("cogs." + cog)
+            await self.bot.unload_extension("cogs." + cog)
+            await self.bot.load_extension("cogs." + cog)
             await ctx.send(f"**`SUCCESS:`** Reloaded {cog}")
         except Exception as e:
             await ctx.send(f"**`ERROR:`** Failed to reload {cog}: {e}")
@@ -77,6 +77,14 @@ class Owner(commands.Cog):
         else:
             await ctx.send(f"**`ERROR:`** No guild with that ID found")
 
+    @owner.command("sync")
+    @commands.is_owner()
+    async def sync(self, ctx: commands.Context) -> None:
+        self.bot.tree.copy_global_to(guild=ctx.guild)
+        await self.bot.tree.sync(guild=ctx.guild)
 
-def setup(bot):
-    bot.add_cog(Owner(bot))
+        await ctx.send("Synced commands to this guild")
+
+
+async def setup(bot):
+    await bot.add_cog(Owner(bot))

@@ -1,6 +1,6 @@
 import configparser
 from discord.ext import commands
-from discord import Embed, File, TextChannel
+from discord import Embed, File, TextChannel, app_commands, Interaction
 import logging
 import os
 import csv
@@ -10,6 +10,8 @@ from sqlalchemy import func, column
 import pandas as pd
 import difflib
 from datetime import datetime, timezone, timedelta
+from cogs.logmanager.views.filter import LogSearchView
+import typing
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -138,7 +140,7 @@ class LogManager(commands.Cog, name="LogManager"):
                   f"Logs parsed {log_counter - errors}/{log_counter} ({errors} errors)")
         await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
 
-    @log.command(name="weekly", help="Add weekly clear logs from the configured channel")
+    @commands.hybrid_command(name="weekly", help="Add weekly clear logs from the configured channel")
     async def weekly(self, ctx):
         # Get configured channel
         config = configparser.ConfigParser()
@@ -155,10 +157,10 @@ class LogManager(commands.Cog, name="LogManager"):
             return
 
         # Load latest message
-        messages = await channel.history(limit=1).flatten()
+        message = await anext(channel.history(limit=1))
 
         # Find all links to logs in the message
-        logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", messages[0].content)
+        logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
         message = await ctx.send(f"Found {len(logs)} logs:")
 
         errors = 0  # Tracks the number of errors while adding logs
@@ -168,7 +170,7 @@ class LogManager(commands.Cog, name="LogManager"):
             r = await add_log(log)
             if r is not None:
                 errors += 1
-                await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
+                message = await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
             else:
                 added_logs.append(log)
         db.commit()
@@ -327,12 +329,16 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await ctx.send(embed=embed)
 
-    @stats.command(name="boss", help="Show boss specific stats", usage="<boss>")
-    async def stats_boss(self, ctx, boss):
+    @commands.hybrid_command(name="boss", help="Show boss specific stats", usage="<boss>")
+    async def stats_boss(self, ctx,  boss: str) -> None:
         if boss in boss_abrv:
             boss = boss_abrv[boss]
         query = db.query(Log).join(Player)
         query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
+
+        if query.count() == 0:
+            await ctx.send("**:x: No logs found**")
+            return
 
         # Create embed
         embed = Embed(title=boss, color=0x0099ff)
@@ -437,8 +443,11 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await ctx.send(embed=embed)
 
-    @log.command(name="buff")
-    async def buff(self, ctx, boss, *buffs):
+    @commands.hybrid_command(name="buffs", help="Show stats about specific buffs at a boss")
+    async def buffs(self, ctx, boss: str, buffs: typing.Optional[str]) -> None:
+        # Allow comma seperated buffs
+        buffs = re.split(",\s+|,", buffs)
+
         # If no buffs were specified fall back to default
         if not buffs:
             buffs = ["Might", "Quickness", "Alacrity"]
@@ -518,8 +527,8 @@ class LogManager(commands.Cog, name="LogManager"):
             # Remove file
             os.remove(filepath)
 
-    @log.command(name="mech", help="Show mechanic stats", usage="<boss> [mechanic]")
-    async def mech(self, ctx, boss, *mechanics):
+    @commands.hybrid_command(name="mechs", help="Show mechanic stats", usage="<boss> [mechanic]")
+    async def mechs(self, ctx, boss: str, mechanics: typing.Optional[str]) -> None:
         if boss in boss_abrv:
             boss = boss_abrv[boss]
 
@@ -550,6 +559,9 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send(embed=embed)
 
         else:
+            # Allow comma seperated mechs
+            mechanics = re.split(",\s+|,", mechanics)
+
             # Create dataset
             data = []
             for mechanic in mechanics:
@@ -603,15 +615,6 @@ class LogManager(commands.Cog, name="LogManager"):
                     for log in log_query:
                         if log[0] not in log_list:
                             data.append([log[0], 0, mechanic_map[0].description])
-                    """
-                    # Suggest similarly spelled buffs in case the bot chose the wrong one
-                    if len(closest) > 0:
-                        description += f"\nSimilar buffs: `"
-                        for c in closest:
-                            description += f"{c}, "
-                        description = description.rstrip(", ")
-                        description += "`"
-                    """
                     embed.add_field(name=f"**{mechanic_map[0].description}:**", value=description, inline=False)
 
             # Create dataframe from data
@@ -632,6 +635,13 @@ class LogManager(commands.Cog, name="LogManager"):
                 # Remove file
                 os.remove(filepath)
 
+    @app_commands.command(name="logs", description="Search for logs")
+    async def search_logs(self, interaction: Interaction) -> None:
+        view = LogSearchView()
 
-def setup(bot):
-    bot.add_cog(LogManager(bot))
+        await interaction.response.send_message(view=view)
+        view.message = await interaction.original_message()
+
+
+async def setup(bot):
+    await bot.add_cog(LogManager(bot))

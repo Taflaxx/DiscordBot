@@ -11,12 +11,17 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
+print(discord.__version__)
+
 # Loading config
 config = configparser.ConfigParser()
 config.read('config.ini')
 
 # Set up bot
-bot = commands.Bot(command_prefix=config["Bot"]["Prefix"])
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix=config["Bot"]["Prefix"], intents=intents)
 
 
 @bot.event
@@ -26,7 +31,7 @@ async def on_ready():
     # Get list of cogs and load them
     for cog in json.loads(config["Bot"]["Cogs"]):
         try:
-            bot.load_extension(cog)
+            await bot.load_extension(cog)
             print(f"Successfully loaded {cog}")
         except Exception as e:
             print(f"Failed to load {cog}: {e}")

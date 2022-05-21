@@ -167,5 +167,5 @@ class ReminderManager(commands.Cog, name="reminder"):
                 self.reminders.remove(reminder)
 
 
-def setup(bot):
-    bot.add_cog(ReminderManager(bot))
+async def setup(bot):
+    await bot.add_cog(ReminderManager(bot))
