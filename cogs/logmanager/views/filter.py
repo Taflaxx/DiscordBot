@@ -132,6 +132,7 @@ class LogPaginationView(discord.ui.View):
         self.logs_per_page = logs_per_page
         self.current_page = 0
         self.last_page = math.ceil(query.count() / logs_per_page) - 1
+        self.children[2].label = f"{1}/{self.last_page + 1}"
 
     def switch_to_page(self, page: int):
         # create updated embed
@@ -141,7 +142,7 @@ class LogPaginationView(discord.ui.View):
 
         # update page counter
         self.current_page = page
-        self.children[2].label = f"{page}/{self.last_page}"
+        self.children[2].label = f"{page + 1}/{self.last_page + 1}"
 
         return embed
 
