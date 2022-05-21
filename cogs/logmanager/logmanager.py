@@ -10,7 +10,7 @@ from sqlalchemy import func, column
 import pandas as pd
 import difflib
 from datetime import datetime, timezone, timedelta
-from cogs.logmanager.views.filter import LogSearchView
+from cogs.logmanager.views.filter import LogFilterView
 import typing
 
 # Set up logging
@@ -637,7 +637,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.command(name="logs", description="Search for logs")
     async def search_logs(self, interaction: Interaction) -> None:
-        view = LogSearchView()
+        view = LogFilterView()
 
         await interaction.response.send_message(view=view)
         view.message = await interaction.original_message()

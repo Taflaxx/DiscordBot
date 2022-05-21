@@ -42,10 +42,11 @@ order_dict = {"Target DPS": Player.dps.desc(),
              "Duration": Log.duration.asc()}
 
 
-class LogSearchView(discord.ui.View):
+class LogFilterView(discord.ui.View):
     def __init__(self):
         super().__init__()
         self.message = None
+        self.response = None
 
         # Adds the dropdown to our view object.
         self.add_item(EmojiDropdown(bosses, "Select a Boss", 0, len(bosses)))
@@ -80,8 +81,6 @@ class LogSearchView(discord.ui.View):
         for boss in selected_bosses.copy():     # Use a copy of the list to prevent infinite loop
             selected_bosses.append(f"{boss} CM")
 
-        print(selected_bosses, selected_professions, order_dict[selected_order])
-
         # Query DB
         query = db.query(Player).join(Log)
         if selected_bosses:
@@ -97,8 +96,13 @@ class LogSearchView(discord.ui.View):
         embed = create_log_embed(query, selected_order)
 
         view = LogPaginationView(query, selected_order)
-        await interaction.response.send_message(embed=embed, view=view)
-        view.message = await interaction.original_message()
+        if not self.response:
+            await interaction.response.send_message(embed=embed, view=view)
+            self.response = await interaction.original_message()
+        else:
+            await self.response.edit(embed=embed, view=view)
+            await interaction.response.defer()
+        view.message = self.response
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):
