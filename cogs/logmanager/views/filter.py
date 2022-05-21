@@ -96,7 +96,9 @@ class LogSearchView(discord.ui.View):
 
         embed = create_log_embed(query, selected_order)
 
-        await interaction.response.send_message(embed=embed, view=LogPaginationView(query, selected_order))
+        view = LogPaginationView(query, selected_order)
+        await interaction.response.send_message(embed=embed, view=view)
+        view.message = await interaction.original_message()
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):
@@ -123,6 +125,8 @@ def create_log_embed(query, order, start: int = 0, end: int = 10):
 class LogPaginationView(discord.ui.View):
     def __init__(self, query, order, logs_per_page: int = 10):
         super().__init__()
+        self.message = None
+
         self.query = query
         self.order = order
         self.logs_per_page = logs_per_page
@@ -172,3 +176,10 @@ class LogPaginationView(discord.ui.View):
             await interaction.response.edit_message(embed=self.switch_to_page(self.last_page), view=self)
         else:
             await interaction.response.defer()
+
+    async def on_timeout(self):
+        # disable everything on timeout
+        for item in self.children:
+            item.disabled = True
+
+        await self.message.edit(view=self)
