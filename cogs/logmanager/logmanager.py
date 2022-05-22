@@ -445,12 +445,12 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @commands.hybrid_command(name="buffs", help="Show stats about specific buffs at a boss")
     async def buffs(self, ctx, boss: str, buffs: typing.Optional[str]) -> None:
-        # Allow comma seperated buffs
-        buffs = re.split(",\s+|,", buffs)
-
         # If no buffs were specified fall back to default
         if not buffs:
             buffs = ["Might", "Quickness", "Alacrity"]
+        else:
+            # Allow comma seperated buffs
+            buffs = re.split(",\s+|,", buffs)
         if boss in boss_abrv:
             boss = boss_abrv[boss]
         data = []
