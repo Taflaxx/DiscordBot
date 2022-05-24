@@ -80,10 +80,10 @@ class LogFilterView(discord.ui.View):
         selected_professions: [str] = self.children[3].values
         selected_professions.extend(self.children[4].values)
 
-        # Default to PLayer.dps if nothing was selected
+        # Default to Player.dps if nothing was selected
         selected_order = "Target DPS"
-        if self.children[4].values:
-            selected_order = self.children[4].values[0]
+        if self.children[5].values:
+            selected_order = self.children[5].values[0]
 
         # Add CM version of bosses
         for boss in selected_bosses.copy():  # Use a copy of the list to prevent infinite loop
