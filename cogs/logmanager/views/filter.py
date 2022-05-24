@@ -65,6 +65,7 @@ class LogFilterView(discord.ui.View):
 
         await self.message.edit(view=self)
 
+    # TODO: only clickable by author, replace with pagination view
     @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get values
@@ -90,7 +91,9 @@ class LogFilterView(discord.ui.View):
         query = query.order_by(order_dict[selected_order])
 
         if query.count() == 0:
-            await interaction.response.send_message(content="**:x: No logs found**", )
+            # Update original message if no logs were found
+            await interaction.message.edit(content="**:x: No logs found**", view=self)
+            await interaction.response.defer()
             return
 
         embed = create_log_embed(query, selected_order)
@@ -125,7 +128,7 @@ def create_log_embed(query, order, start: int = 0, end: int = 10):
 
     return embed
 
-
+# TODO: query info drüber schreiben
 class LogPaginationView(discord.ui.View):
     def __init__(self, query, order, logs_per_page: int = 10):
         super().__init__()
