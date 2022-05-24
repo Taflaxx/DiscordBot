@@ -1,5 +1,4 @@
 import math
-
 import discord
 from discord import Embed
 from cogs.logmanager.db import *
@@ -46,7 +45,6 @@ class LogFilterView(discord.ui.View):
     def __init__(self):
         super().__init__()
         self.message = None
-        self.response = None
 
         # Adds the dropdown to our view object.
         self.add_item(EmojiDropdown(bosses, "Select a Boss", 0, len(bosses)))
@@ -59,15 +57,14 @@ class LogFilterView(discord.ui.View):
         self.add_item(SimpleDropdown(order_dict.keys(), "Order logs by...", 1, 1))
 
     async def on_timeout(self):
-        # disable everything on timeout
-        for item in self.children:
-            item.disabled = True
-
-        await self.message.edit(view=self)
+        await self.message.delete()
 
     # TODO: only clickable by author, replace with pagination view
     @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # defer at the beginning to prevent failed interactions in case the db query takes too long
+        await interaction.response.defer()
+
         # Get values
         selected_bosses: [str] = self.children[1].values
         selected_professions: [str] = self.children[2].values
@@ -82,30 +79,31 @@ class LogFilterView(discord.ui.View):
         for boss in selected_bosses.copy():     # Use a copy of the list to prevent infinite loop
             selected_bosses.append(f"{boss} CM")
 
+        # Create a string to show the selected values
+        filter_str = "__**Search Settings:**__\n"
+
         # Query DB
         query = db.query(Player).join(Log)
         if selected_bosses:
             query = query.filter(Log.fight_name.in_(selected_bosses))
+            filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"
         if selected_professions:
             query = query.filter(Player.profession.in_(selected_professions))
+            filter_str += f"**Professions:** {', '.join(selected_professions)}\n"
         query = query.order_by(order_dict[selected_order])
+        filter_str += f"**Ordered by:** {selected_order}\n"
 
         if query.count() == 0:
             # Update original message if no logs were found
-            await interaction.message.edit(content="**:x: No logs found**", view=self)
-            await interaction.response.defer()
+            await interaction.message.edit(content="**:x: No logs found**\n" + filter_str, view=self)
             return
 
         embed = create_log_embed(query, selected_order)
 
+        # Create paginated log view
         view = LogPaginationView(query, selected_order)
-        if not self.response:
-            await interaction.response.send_message(embed=embed, view=view)
-            self.response = await interaction.original_message()
-        else:
-            await self.response.edit(embed=embed, view=view)
-            await interaction.response.defer()
-        view.message = self.response
+        await interaction.message.edit(content=filter_str, embed=embed, view=view)
+        view.message = self.message
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):
@@ -128,7 +126,7 @@ def create_log_embed(query, order, start: int = 0, end: int = 10):
 
     return embed
 
-# TODO: query info drüber schreiben
+
 class LogPaginationView(discord.ui.View):
     def __init__(self, query, order, logs_per_page: int = 10):
         super().__init__()
