@@ -636,6 +636,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await interaction.response.send_message(view=view)
         view.message = await interaction.original_message()
+        view.user = interaction.user
 
 
 async def setup(bot):

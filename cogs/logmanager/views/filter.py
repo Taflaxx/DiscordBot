@@ -36,15 +36,17 @@ class TextInput(discord.ui.TextInput):
 
 
 order_dict = {"Target DPS": Player.dps.desc(),
-             "Damage taken": Player.damage.desc(),
-             "Date": Log.date_time.desc(),
-             "Duration": Log.duration.asc()}
+              "Damage taken": Player.damage.desc(),
+              "Date": Log.date_time.desc(),
+              "Duration": Log.duration.asc()}
 
 
 class LogFilterView(discord.ui.View):
     def __init__(self):
         super().__init__()
-        self.message = None
+
+        self.message = None  # the message of this view
+        self.user = None  # user that used the slash command
 
         # Adds the dropdown to our view object.
         self.add_item(EmojiDropdown(bosses, "Select a Boss", 0, len(bosses)))
@@ -57,11 +59,19 @@ class LogFilterView(discord.ui.View):
         self.add_item(SimpleDropdown(order_dict.keys(), "Order logs by...", 1, 1))
 
     async def on_timeout(self):
+        # If search wasn't pressed delete this message on timeout
         await self.message.delete()
 
-    # TODO: only clickable by author, replace with pagination view
     @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow the command user to press the search button
+        if interaction.user != self.user:
+            await interaction.response.send_message(
+                content="This is only usable by the person who issued the command.\n"
+                        "Please enter the command yourself if you want to use it.",
+                ephemeral=True)
+            return
+
         # defer at the beginning to prevent failed interactions in case the db query takes too long
         await interaction.response.defer()
 
@@ -76,7 +86,7 @@ class LogFilterView(discord.ui.View):
             selected_order = self.children[4].values[0]
 
         # Add CM version of bosses
-        for boss in selected_bosses.copy():     # Use a copy of the list to prevent infinite loop
+        for boss in selected_bosses.copy():  # Use a copy of the list to prevent infinite loop
             selected_bosses.append(f"{boss} CM")
 
         # Create a string to show the selected values
@@ -104,6 +114,7 @@ class LogFilterView(discord.ui.View):
         view = LogPaginationView(query, selected_order)
         await interaction.message.edit(content=filter_str, embed=embed, view=view)
         view.message = self.message
+        self.stop()
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):
