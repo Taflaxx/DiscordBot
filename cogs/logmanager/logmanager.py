@@ -11,6 +11,7 @@ import pandas as pd
 import difflib
 from datetime import datetime, timezone, timedelta
 from cogs.logmanager.views.filter import LogFilterView
+import cogs.logmanager.choices as choices
 import typing
 
 # Set up logging
@@ -329,15 +330,13 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="boss", help="Show boss specific stats", usage="<boss>")
-    async def stats_boss(self, ctx,  boss: str) -> None:
-        if boss in boss_abrv:
-            boss = boss_abrv[boss]
+    @app_commands.command(name="boss", description="Show boss specific stats")
+    async def stats_boss(self, interaction: Interaction,  boss: choices.bosses) -> None:
         query = db.query(Log).join(Player)
         query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
 
         if query.count() == 0:
-            await ctx.send("**:x: No logs found**")
+            await interaction.response.send_message("**:x: No logs found**")
             return
 
         # Create embed
@@ -398,7 +397,7 @@ class LogManager(commands.Cog, name="LogManager"):
         filepath, filename = plot_lineplot(df, boss)
         # Add file to embed and send it
         embed.set_image(url=f"attachment://{filename}")
-        await ctx.send(embed=embed, file=File(filepath))
+        await interaction.response.send_message(embed=embed, file=File(filepath))
         # Remove file
         os.remove(filepath)
 
@@ -443,16 +442,15 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="buffs", help="Show stats about specific buffs at a boss")
-    async def buffs(self, ctx, boss: str, buffs: typing.Optional[str]) -> None:
+    @app_commands.command(name="buffs", description="Show stats about specific buffs at a boss")
+    async def buffs(self, interaction: Interaction, boss: choices.bosses, buffs: typing.Optional[str]) -> None:
         # If no buffs were specified fall back to default
         if not buffs:
             buffs = ["Might", "Quickness", "Alacrity"]
         else:
             # Allow comma seperated buffs
             buffs = re.split(",\s+|,", buffs)
-        if boss in boss_abrv:
-            boss = boss_abrv[boss]
+
         data = []
         # Create embed
         embed = Embed(title=f"Buffs on {boss}", color=0x0099ff)
@@ -517,25 +515,22 @@ class LogManager(commands.Cog, name="LogManager"):
             embed.title = f"{buff_map[0].name} on {boss}"
         # Check if dataframe actually contains any data
         if df.empty:
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed)
         else:
             # Create line plot and add it to embed
             filepath, filename = plot_lineplot(df, boss, "Boon", True)
             embed.set_image(url=f"attachment://{filename}")
             # Suggest other close matches
-            await ctx.send(embed=embed, file=File(filepath))
+            await interaction.response.send_message(embed=embed, file=File(filepath))
             # Remove file
             os.remove(filepath)
 
-    @commands.hybrid_command(name="mechs", help="Show mechanic stats", usage="<boss> [mechanic]")
-    async def mechs(self, ctx, boss: str, mechanics: typing.Optional[str]) -> None:
-        if boss in boss_abrv:
-            boss = boss_abrv[boss]
-
+    @app_commands.command(name="mechs", description="Show mechanic stats")
+    async def mechs(self, interaction: Interaction, boss: choices.bosses, mechanics: typing.Optional[str]) -> None:
         # Check if boss exists in db
         boss_db = db.query(Log.fight_name).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
         if not boss_db:
-            await ctx.send_help("log mech")
+            await interaction.response.send_message("**:x: No logs found**")
             return
 
         embed = Embed(title=f"Mechanics on {boss}", color=0x0099ff)
@@ -556,7 +551,7 @@ class LogManager(commands.Cog, name="LogManager"):
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
                     .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
                 embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed)
 
         else:
             # Allow comma seperated mechs
@@ -625,13 +620,13 @@ class LogManager(commands.Cog, name="LogManager"):
                 embed.title = f"{mechanic_map[0].description} on {boss}"
             # Check if dataframe actually contains any data
             if df.empty:
-                await ctx.send(embed=embed)
+                await interaction.response.send_message(embed=embed)
             else:
                 # Create line plot and add it to embed
                 filepath, filename = plot_lineplot(df, boss, "Mechanic", False)
                 embed.set_image(url=f"attachment://{filename}")
                 # Suggest other close matches
-                await ctx.send(embed=embed, file=File(filepath))
+                await interaction.response.send_message(embed=embed, file=File(filepath))
                 # Remove file
                 os.remove(filepath)
 
