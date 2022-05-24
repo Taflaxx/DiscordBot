@@ -30,11 +30,6 @@ class EmojiDropdown(discord.ui.Select):
         await interaction.response.defer()
 
 
-class TextInput(discord.ui.TextInput):
-    def __init__(self, label):
-        super().__init__(label=label, required=False, style=discord.TextStyle.short)
-
-
 order_dict = {"Target DPS": Player.dps.desc(),
               "Damage taken": Player.damage.desc(),
               "Date": Log.date_time.desc(),
@@ -47,6 +42,7 @@ class LogFilterView(discord.ui.View):
 
         self.message = None  # the message of this view
         self.user = None  # user that used the slash command
+        self.advanced = AdvancedFilter(self)
 
         # Adds the dropdown to our view object.
         self.add_item(EmojiDropdown(bosses, "Select a Boss", 0, len(bosses)))
@@ -62,6 +58,10 @@ class LogFilterView(discord.ui.View):
         # If search wasn't pressed delete this message on timeout
         await self.message.delete()
 
+    @discord.ui.button(label="Advanced", style=discord.ButtonStyle.gray, row=4)
+    async def advanced(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(self.advanced)
+
     @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Only allow the command user to press the search button
@@ -76,9 +76,9 @@ class LogFilterView(discord.ui.View):
         await interaction.response.defer()
 
         # Get values
-        selected_bosses: [str] = self.children[1].values
-        selected_professions: [str] = self.children[2].values
-        selected_professions.extend(self.children[3].values)
+        selected_bosses: [str] = self.children[2].values
+        selected_professions: [str] = self.children[3].values
+        selected_professions.extend(self.children[4].values)
 
         # Default to PLayer.dps if nothing was selected
         selected_order = "Target DPS"
@@ -100,6 +100,12 @@ class LogFilterView(discord.ui.View):
         if selected_professions:
             query = query.filter(Player.profession.in_(selected_professions))
             filter_str += f"**Professions:** {', '.join(selected_professions)}\n"
+        if self.advanced.account.value:
+            query = query.filter(Player.account.ilike(f"%{self.advanced.account.value}%"))
+            filter_str += f"**Account:** {self.advanced.account.value}\n"
+        if self.advanced.character.value:
+            query = query.filter(Player.character.ilike(f"%{self.advanced.character.value}%"))
+            filter_str += f"**Character:** {self.advanced.character.value}\n"
         query = query.order_by(order_dict[selected_order])
         filter_str += f"**Ordered by:** {selected_order}\n"
 
@@ -115,6 +121,22 @@ class LogFilterView(discord.ui.View):
         await interaction.message.edit(content=filter_str, embed=embed, view=view)
         view.message = self.message
         self.stop()
+
+
+class AdvancedFilter(discord.ui.Modal, title="Advanced Settings"):
+    def __init__(self, view: LogFilterView):
+        super().__init__()
+        self.view = view
+
+    account = discord.ui.TextInput(label="Account Name", required=False)
+    character = discord.ui.TextInput(label="Character Name", required=False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        # Show old values as placeholder if modal is opened again
+        self.account.placeholder = self.account.value
+        self.character.placeholder = self.character.value
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):
