@@ -113,7 +113,8 @@ class LogManager(commands.Cog, name="LogManager"):
                 # For better formatting (max 2 fields next to each other) add an invisible field
                 if (i + 1) % 10 == 0:
                     embed.add_field(name="\u200b", value="\u200b")
-            await ctx.send(embed=embed)
+            await ctx.send(embed=embed, content=":exclamation:**Please use the new `/logs` command. "
+                                                "This command might get removed soon.**")
 
     @log.command(name="history", help="Search a Discord channel for logs", usage="<channel> [message_limit]")
     @commands.is_owner()
