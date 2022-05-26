@@ -21,8 +21,8 @@ class SimpleDropdown(discord.ui.Select):
 class EmojiDropdown(discord.ui.Select):
     def __init__(self, options_dict: {}, placeholder: str = None, min_values: int = 1, max_values: int = 1):
         options = []
-        for option, emoji in options_dict.items():
-            options.append(discord.SelectOption(label=option, emoji=emoji))
+        for key, value in options_dict.items():
+            options.append(discord.SelectOption(label=key, emoji=value["emoji"]))
 
         super().__init__(placeholder=placeholder, min_values=min_values, max_values=max_values, options=options)
 

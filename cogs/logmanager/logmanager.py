@@ -12,6 +12,7 @@ import difflib
 from datetime import datetime, timezone, timedelta
 from cogs.logmanager.views.filter import LogFilterView
 import cogs.logmanager.choices as choices
+from cogs.logmanager.dicts import bosses
 import typing
 
 # Set up logging
@@ -341,7 +342,8 @@ class LogManager(commands.Cog, name="LogManager"):
             return
 
         # Create embed
-        embed = Embed(title=boss, color=0x0099ff)
+        embed = Embed(title="Boss Stats", color=0x0099ff)
+        embed.set_author(name=boss, icon_url=bosses[boss]["icon"])
 
         # First kill
         first_kill = query.order_by(Log.date_time.asc()).first()
@@ -350,6 +352,9 @@ class LogManager(commands.Cog, name="LogManager"):
         # Latest kill
         latest_kill = query.order_by(Log.date_time.desc()).first()
         embed.add_field(name="Latest kill:", value=f"[{latest_kill.date_time.strftime('%B %e, %Y')}]({latest_kill.link})")
+
+        # Total kills
+        embed.add_field(name="Number of kills:", value=query.distinct(Log.link).count())
 
         # Fastest kills
         query_fastest = query.distinct(Log.link).order_by(Log.duration.asc())
@@ -454,7 +459,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
         data = []
         # Create embed
-        embed = Embed(title=f"Buffs on {boss}", color=0x0099ff)
+        embed = Embed(title=f"Buff Uptimes", color=0x0099ff)
+        embed.set_author(name=boss, icon_url=bosses[boss]["icon"])
         embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/818529609330851910.gif?v=1")
 
         # Create dataset
@@ -534,7 +540,8 @@ class LogManager(commands.Cog, name="LogManager"):
             await interaction.response.send_message("**:x: No logs found**")
             return
 
-        embed = Embed(title=f"Mechanics on {boss}", color=0x0099ff)
+        embed = Embed(title=f"Mechanics", color=0x0099ff)
+        embed.set_author(name=boss, icon_url=bosses[boss]["icon"])
 
         # If no mechanic was specified
         if not mechanics:

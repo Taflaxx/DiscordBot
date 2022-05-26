@@ -1,74 +1,157 @@
-# Professions with icons
-professions = {"Guardian": "<:guardian:977325613738229820>",
-               "Dragonhunter": "<:guardian:977325613738229820>",
-               "Firebrand": "<:guardian:977325613738229820>",
-               "Willbender": "<:guardian:977325613738229820>",
+# Professions with emojis
+professions = {
+        "Guardian": {
+            "emoji": "<:guardian:977325613738229820>"},
+        "Dragonhunter": {
+            "emoji": "<:guardian:977325613738229820>"},
+        "Firebrand": {
+            "emoji": "<:guardian:977325613738229820>"},
+        "Willbender": {
+            "emoji": "<:guardian:977325613738229820>"},
 
-               "Revenant": "<:revenant:977325491541389413>",
-               "Herald": "<:revenant:977325491541389413>",
-               "Renegade": "<:revenant:977325491541389413>",
-               "Vindicator": "<:revenant:977325491541389413>",
+        "Revenant": {
+            "emoji": "<:revenant:977325491541389413>"},
+        "Herald": {
+            "emoji": "<:revenant:977325491541389413>"},
+        "Renegade": {
+            "emoji": "<:revenant:977325491541389413>"},
+        "Vindicator": {
+            "emoji": "<:revenant:977325491541389413>"},
 
-               "Warrior": "<:warrior:977325418640207952>",
-               "Berserker": "<:warrior:977325418640207952>",
-               "Spellbreaker": "<:warrior:977325418640207952>",
-               "Bladesworn": "<:warrior:977325418640207952>",
+        "Warrior": {
+            "emoji": "<:warrior:977325418640207952>"},
+        "Berserker": {
+            "emoji": "<:warrior:977325418640207952>"},
+        "Spellbreaker": {
+            "emoji": "<:warrior:977325418640207952>"},
+        "Bladesworn": {
+            "emoji": "<:warrior:977325418640207952>"},
 
-               "Engineer": "<:engineer:977325644742553650>",
-               "Scrapper": "<:engineer:977325644742553650>",
-               "Holosmith": "<:engineer:977325644742553650>",
-               "Mechanist": "<:engineer:977325644742553650>",
+        "Engineer": {
+            "emoji": "<:engineer:977325644742553650>"},
+        "Scrapper": {
+            "emoji": "<:engineer:977325644742553650>"},
+        "Holosmith": {
+            "emoji": "<:engineer:977325644742553650>"},
+        "Mechanist": {
+            "emoji": "<:engineer:977325644742553650>"},
 
-               "Ranger": "<:ranger:977325527696297984>",
-               "Druid": "<:ranger:977325527696297984>",
-               "Soulbeast": "<:ranger:977325527696297984>",
-               "Untamed": "<:ranger:977325527696297984>",
+        "Ranger": {
+            "emoji": "<:ranger:977325527696297984>"},
+        "Druid": {
+            "emoji": "<:ranger:977325527696297984>"},
+        "Soulbeast": {
+            "emoji": "<:ranger:977325527696297984>"},
+        "Untamed": {
+            "emoji": "<:ranger:977325527696297984>"},
 
-               "Thief": "<:thief:977325463468916826>",
-               "Daredevil": "<:thief:977325463468916826>",
-               "Deadeye": "<:thief:977325463468916826>",
-               "Specter": "<:thief:977325463468916826>",
+        "Thief": {
+            "emoji": "<:thief:977325463468916826>"},
+        "Daredevil": {
+            "emoji": "<:thief:977325463468916826>"},
+        "Deadeye": {
+            "emoji": "<:thief:977325463468916826>"},
+        "Specter": {
+            "emoji": "<:thief:977325463468916826>"},
 
-               "Elementalist": "<:elementalist:977325677479092244>",
-               "Tempest": "<:elementalist:977325677479092244>",
-               "Weaver": "<:elementalist:977325677479092244>",
-               "Catalyst": "<:elementalist:977325677479092244>",
+        "Elementalist": {
+            "emoji": "<:elementalist:977325677479092244>"},
+        "Tempest": {
+            "emoji": "<:elementalist:977325677479092244>"},
+        "Weaver": {
+            "emoji": "<:elementalist:977325677479092244>"},
+        "Catalyst": {
+            "emoji": "<:elementalist:977325677479092244>"},
 
-               "Mesmer": "<:mesmer:977325588404633630>",
-               "Chronomancer": "<:mesmer:977325588404633630>",
-               "Mirage": "<:mesmer:977325588404633630>",
-               "Virtuoso": "<:mesmer:977325588404633630>",
+        "Mesmer": {
+            "emoji": "<:mesmer:977325588404633630>"},
+        "Chronomancer": {
+            "emoji": "<:mesmer:977325588404633630>"},
+        "Mirage": {
+            "emoji": "<:mesmer:977325588404633630>"},
+        "Virtuoso": {
+            "emoji": "<:mesmer:977325588404633630>"},
 
-               "Necromancer": "<:necromancer:977325557933035520>",
-               "Reaper": "<:necromancer:977325557933035520>",
-               "Scourge": "<:necromancer:977325557933035520>",
-               "Harbinger": "<:necromancer:977325557933035520>"
-               }
+        "Necromancer": {
+            "emoji": "<:necromancer:977325557933035520>"},
+        "Reaper": {
+            "emoji": "<:necromancer:977325557933035520>"},
+        "Scourge": {
+            "emoji": "<:necromancer:977325557933035520>"},
+        "Harbinger": {
+            "emoji": "<:necromancer:977325557933035520>"}
+        }
 
 # bosses ordered by raid wing
-bosses = {"Vale Guardian": "1️⃣",
-          "Gorseval the Multifarious": "1️⃣",
-          "Sabetha the Saboteur": "1️⃣",
+bosses = {
+        # Wing 1
+        "Vale Guardian": {
+            "emoji": "1️⃣",
+            "icon": "https://wiki.guildwars2.com/images/f/fb/Mini_Vale_Guardian.png"},
+        "Gorseval the Multifarious": {
+            "emoji": "1️⃣",
+            "icon": "https://wiki.guildwars2.com/images/d/d1/Mini_Gorseval_the_Multifarious.png"},
+        "Sabetha the Saboteur": {
+            "emoji": "1️⃣",
+            "icon": "https://wiki.guildwars2.com/images/5/54/Mini_Sabetha.png"},
 
-          "Slothasor": "2️⃣",
-          "Matthias Gabrel": "2️⃣",
+        # Wing 2
+        "Slothasor": {
+            "emoji": "2️⃣",
+            "icon": "https://wiki.guildwars2.com/images/1/12/Mini_Slothasor.png"},
+        "Matthias Gabrel": {
+            "emoji": "2️⃣",
+            "icon": "https://wiki.guildwars2.com/images/5/5d/Mini_Matthias_Abomination.png"},
 
-          "Keep Construct": "3️⃣",
-          "Xera": "3️⃣",
+        # Wing 3
+        "Keep Construct": {
+            "emoji": "3️⃣",
+            "icon": "https://wiki.guildwars2.com/images/e/ea/Mini_Keep_Construct.png"},
+        "Xera": {
+            "emoji": "3️⃣",
+            "icon": "https://wiki.guildwars2.com/images/4/4b/Mini_Xera.png"},
 
-          "Cairn the Indomitable": "4️⃣",
-          "Mursaat Overseer": "4️⃣",
-          "Samarog": "4️⃣",
-          "Deimos": "4️⃣",
+        # Wing 4
+        "Cairn the Indomitable": {
+            "emoji": "4️⃣",
+            "icon": "https://wiki.guildwars2.com/images/b/b8/Mini_Cairn_the_Indomitable.png"},
+        "Mursaat Overseer": {
+            "emoji": "4️⃣",
+            "icon": "https://wiki.guildwars2.com/images/c/c8/Mini_Mursaat_Overseer.png"},
+        "Samarog": {
+            "emoji": "4️⃣",
+            "icon": "https://wiki.guildwars2.com/images/f/f0/Mini_Samarog.png"},
+        "Deimos": {
+            "emoji": "4️⃣",
+            "icon": "https://wiki.guildwars2.com/images/e/e0/Mini_Ragged_White_Mantle_Figurehead.png"},
 
-          "Soulless Horror": "5️⃣",
-          "Dhuum": "5️⃣",
+        # Wing 5
+        "Soulless Horror": {
+            "emoji": "5️⃣",
+            "icon": "https://wiki.guildwars2.com/images/d/d4/Mini_Desmina.png"},
+        "Dhuum": {
+            "emoji": "5️⃣",
+            "icon": "https://wiki.guildwars2.com/images/e/e4/Mini_Dhuum.png"},
 
-          "Conjured Amalgamate": "6️⃣",
-          "Twin Largos": "6️⃣",
-          "Qadim": "6️⃣",
+        # Wing 6
+        "Conjured Amalgamate": {
+            "emoji": "6️⃣",
+            "icon": "https://wiki.guildwars2.com/images/3/39/Gold_Conjured_Amalgamate_Trophy.png"},
+        "Twin Largos": {
+            "emoji": "6️⃣",
+            "icon": "https://wiki.guildwars2.com/images/e/ea/Mini_Kenut.png"},
+        "Qadim": {
+            "emoji": "6️⃣",
+            "icon": "https://wiki.guildwars2.com/images/f/f2/Mini_Qadim.png"},
 
-          "Cardinal Sabir": "7️⃣",
-          "Cardinal Adina": "7️⃣",
-          "Qadim the Peerless": "7️⃣"
-}
+        # Wing 7
+        "Cardinal Sabir": {
+            "emoji": "7️⃣",
+            "icon": "https://wiki.guildwars2.com/images/f/fc/Mini_Air_Djinn.png"},
+        "Cardinal Adina": {
+            "emoji": "7️⃣",
+            "icon": "https://wiki.guildwars2.com/images/a/a0/Mini_Earth_Djinn.png"},
+        "Qadim the Peerless": {
+            "emoji": "7️⃣",
+            "icon": "https://wiki.guildwars2.com/images/8/8b/Mini_Qadim_the_Peerless.png"},
+        }
