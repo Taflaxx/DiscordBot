@@ -136,6 +136,10 @@ async def add_log(log):
         if not re.match("^[a-zA-Z]+\.(\d{4})$", player["account"]):
             continue
 
+        # Player was probably dead the entire fight or switched character mid-fight, so we can skip
+        if "selfBuffsActive" not in player:
+            continue
+
         # General stuff
         player_db = Player(account=player["account"])
         player_db.character = player["name"]
