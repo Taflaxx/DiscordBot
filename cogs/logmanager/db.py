@@ -38,6 +38,7 @@ class Player(Base):
     character = Column(String)
     profession = Column(String)
     dps = Column(Integer)
+    breakbar = Column(Integer)
     damage = Column(Integer)
     downs = Column(Integer)
     deaths = Column(Integer)
@@ -150,6 +151,9 @@ async def add_log(log):
             player_db.dps = player["dpsTargets"][0][0]["dps"]
             if log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
                 player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
+
+        # Add breakbar
+        player_db.breakbar = player["dpsAll"][0]["breakbarDamage"]
 
         # Add defensive stats
         player_db.damage = player["defenses"][0]["damageTaken"]
