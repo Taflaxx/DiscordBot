@@ -76,7 +76,7 @@ class LogManager(commands.Cog, name="LogManager"):
         query, order, limit = await order_args(query, args)
 
         if query.count() == 0:
-            await ctx.send("**:x: No logs found**")
+            await ctx.send("**:x: No logs found**", ephemeral=True)
             return
 
         if "-csv" in args:
@@ -338,7 +338,7 @@ class LogManager(commands.Cog, name="LogManager"):
         query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
 
         if query.count() == 0:
-            await interaction.response.send_message("**:x: No logs found**")
+            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
             return
 
         # Create embed
@@ -537,7 +537,7 @@ class LogManager(commands.Cog, name="LogManager"):
         # Check if boss exists in db
         boss_db = db.query(Log.fight_name).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
         if not boss_db:
-            await interaction.response.send_message("**:x: No logs found**")
+            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
             return
 
         embed = Embed(title=f"Mechanics", color=0x0099ff)
