@@ -171,7 +171,7 @@ async def add_log(log):
         for buff in player["selfBuffsActive"]:
             buff_db = BuffGeneration(buff=buff["id"])
             buff_db.uptime = buff["buffData"][0]["generation"]
-            player_db.buffs_generated.append(buff_db)
+            player_db.buff_generation.append(buff_db)
             db.add(buff_db)
 
         # Add mechanics

@@ -117,31 +117,42 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send(embed=embed, content=":exclamation:**Please use the new `/logs` command. "
                                                 "This command might get removed soon.**")
 
-    @log.command(name="history", help="Search a Discord channel for logs", usage="<channel> [message_limit]")
     @commands.is_owner()
-    async def parse_channel(self, ctx, channel: TextChannel, limit: int = 100):
+    @app_commands.command(name="history", description="Search a Discord channel for logs")
+    async def parse_channel(self, interaction: Interaction, channel: TextChannel, limit: typing.Optional[int] = None):
         # Get messages
-        messages = await channel.history(limit=limit).flatten()
+        messages = channel.history(limit=limit)
 
         # Send confirmation message
-        await ctx.send(f"Found {len(messages)} messages")
+        response = "**Finding logs:** "
+        await interaction.response.send_message(content=response)
+        # Use normal message instead of interaction to prevent webhook timeout
+        response_message = await interaction.original_message()
 
-        log_counter = 0     # Tracks the number of logs in the messages
-        errors = 0          # Tracks the number of errors while adding logs
-        for idx, message in enumerate(messages):
+        logs = []
+        async for message in messages:
             # Find all links to logs in the message
-            logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
+            logs.extend(re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content))
 
-            for log in logs:
-                log_counter += 1
-                r = await add_log(log)
-                if r is not None:
-                    print(r)
-                    errors += 1
-            db.commit()
-            print(f"Messages parsed: {idx + 1}/{len(messages)}\n"
-                  f"Logs parsed {log_counter - errors}/{log_counter} ({errors} errors)")
-        await ctx.send(f"Added {log_counter - errors}/{log_counter} logs to the database.")
+        # Send confirmation message
+        response += f"{len(logs)} logs found."
+        await response_message.edit(content=response + f"\nParsed 0/{len(logs)} logs.")
+
+        # Add logs
+        errors = 0  # Tracks the number of errors while adding logs
+        for idx, log in enumerate(logs):
+            r = await add_log(log)
+            if r is not None:
+                print(r)
+                errors += 1
+
+            # Periodically update user on progress
+            if (idx+1) % 10 == 0:
+                await response_message.edit(content=f"{response}\nParsed {idx+1}/{len(logs)} logs.")
+                db.commit()
+
+        await response_message.edit(content=f"{response}\nParsed {len(logs)}/{len(logs)} logs.\n"
+                                            f"**Added {len(logs) - errors}/{len(logs)} logs to the database.**")
 
     @commands.hybrid_command(name="weekly", help="Add weekly clear logs from the configured channel")
     async def weekly(self, ctx):
