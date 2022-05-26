@@ -41,17 +41,29 @@ class Player(Base):
     damage = Column(Integer)
     downs = Column(Integer)
     deaths = Column(Integer)
-    buffs = relationship("Buff", back_populates="player")
+    buff_generation = relationship("BuffGeneration", back_populates="player")
+    buff_uptimes = relationship("BuffUptimes", back_populates="player")
     mechanics = relationship("Mechanic", back_populates="player")
 
 
-class Buff(Base):
+class BuffUptimes(Base):
     __bind_key__ = "logmanager"
-    __tablename__ = "buffs"
+    __tablename__ = "buff_uptimes"
 
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey("players.id"))
-    player = relationship("Player", back_populates="buffs")
+    player = relationship("Player", back_populates="buff_uptimes")
+    buff = Column(Integer)
+    uptime = Column(Float)
+
+
+class BuffGeneration(Base):
+    __bind_key__ = "logmanager"
+    __tablename__ = "buff_generation"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"))
+    player = relationship("Player", back_populates="buff_generation")
     buff = Column(Integer)
     uptime = Column(Float)
 
@@ -82,7 +94,7 @@ class BuffMap(Base):
 Base.metadata.create_all(engine)
 Log.__table__.create(bind=engine, checkfirst=True)
 Player.__table__.create(bind=engine, checkfirst=True)
-Buff.__table__.create(bind=engine, checkfirst=True)
+BuffUptimes.__table__.create(bind=engine, checkfirst=True)
 BuffMap.__table__.create(bind=engine, checkfirst=True)
 db.commit()
 
@@ -121,43 +133,57 @@ async def add_log(log):
     # Parse json data for each player
     for player in data["players"]:
         # Check if the player is an actual player and not a NPC
-        if re.match("^[a-zA-Z]+\.(\d{4})$", player["account"]):
-            player_db = Player(account=player["account"])
-            player_db.character = player["name"]
-            player_db.profession = player["profession"]
+        if not re.match("^[a-zA-Z]+\.(\d{4})$", player["account"]):
+            continue
+
+        # General stuff
+        player_db = Player(account=player["account"])
+        player_db.character = player["name"]
+        player_db.profession = player["profession"]
+
+        # Add DPS
+        if log_db.fight_name.startswith("Dhuum"):
             # Special case for Dhuum to ignore the long pre-event
             # Only include "Dhuum Fight"
-            if log_db.fight_name.startswith("Dhuum"):
-                player_db.dps = player["dpsTargets"][0][3]["dps"]
-            else:
-                player_db.dps = player["dpsTargets"][0][0]["dps"]
-                if log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
-                    player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
-            player_db.damage = player["defenses"][0]["damageTaken"]
-            player_db.downs = player["defenses"][0]["downCount"]
-            player_db.deaths = player["defenses"][0]["deadCount"]
+            player_db.dps = player["dpsTargets"][0][3]["dps"]
+        else:
+            player_db.dps = player["dpsTargets"][0][0]["dps"]
+            if log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
+                player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
 
-            # Add buff uptimes
-            for buff in player["buffUptimesActive"]:
-                buff_db = Buff(buff=buff["id"])
-                buff_db.uptime = buff["buffData"][0]["uptime"]
-                player_db.buffs.append(buff_db)
-                db.add(buff_db)
+        # Add defensive stats
+        player_db.damage = player["defenses"][0]["damageTaken"]
+        player_db.downs = player["defenses"][0]["downCount"]
+        player_db.deaths = player["defenses"][0]["deadCount"]
 
-            # Add mechanics
-            for mech in data["mechanics"]:
-                mech_db = Mechanic(name=mech["name"], description=mech["description"], amount=0)
-                for mech_data in mech["mechanicsData"]:
-                    if mech_data["actor"] == player_db.character:
-                        mech_db.amount += 1
-                # Only add mech if player interacted with it
-                if mech_db.amount > 0:
-                    player_db.mechanics.append(mech_db)
-                    db.add(mech_db)
+        # Add buff uptimes
+        for buff in player["buffUptimesActive"]:
+            buff_db = BuffUptimes(buff=buff["id"])
+            buff_db.uptime = buff["buffData"][0]["uptime"]
+            player_db.buff_uptimes.append(buff_db)
+            db.add(buff_db)
 
-            # Add to DB
-            log_db.players.append(player_db)
-            db.add(player_db)
+        # Add buff generation
+        for buff in player["selfBuffsActive"]:
+            buff_db = BuffGeneration(buff=buff["id"])
+            buff_db.uptime = buff["buffData"][0]["generation"]
+            player_db.buffs_generated.append(buff_db)
+            db.add(buff_db)
+
+        # Add mechanics
+        for mech in data["mechanics"]:
+            mech_db = Mechanic(name=mech["name"], description=mech["description"], amount=0)
+            for mech_data in mech["mechanicsData"]:
+                if mech_data["actor"] == player_db.character:
+                    mech_db.amount += 1
+            # Only add mech if player interacted with it
+            if mech_db.amount > 0:
+                player_db.mechanics.append(mech_db)
+                db.add(mech_db)
+
+        # Add to DB
+        log_db.players.append(player_db)
+        db.add(player_db)
     db.add(log_db)
 
     # BuffMap

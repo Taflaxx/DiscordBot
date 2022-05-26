@@ -227,7 +227,7 @@ class LogManager(commands.Cog, name="LogManager"):
         fgs_stolen = {}
         for log in added_logs:
             # Get log from db
-            fgs_logs = db.query(Buff).join(Player).join(Log).filter(Log.link.ilike(log)).filter(Buff.buff.ilike(15792)).all()
+            fgs_logs = db.query(BuffUptimes).join(Player).join(Log).filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792)).all()
             for player in fgs_logs:
                 # If player has buff and it not an elementalist: fgs was stolen
                 if player.player.profession not in ["Elementalist", "Tempest", "Weaver", "Catalyst"]:
@@ -489,9 +489,9 @@ class LogManager(commands.Cog, name="LogManager"):
                 closest.remove(closest[0])
 
             # Join Tables, filter by boss and buff, group by Log.link
-            query = db.query(Log.date_time, func.avg(Buff.uptime), column(buff_map[0].name)).join(Player, Log.players).join(Buff, Player.buffs) \
+            query = db.query(Log.date_time, func.avg(BuffUptimes.uptime), column(buff_map[0].name)).join(Player, Log.players).join(BuffUptimes, Player.buff_uptimes) \
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
-                .filter(Buff.buff == buff_map[0].id).group_by(Log.link).all()
+                .filter(BuffUptimes.buff == buff_map[0].id).group_by(Log.link).all()
             if len(query) < 2:
                 embed.add_field(name="**Error**", value=f"Not enough data for  \"{buff_map[0].name}\".", inline=False)
             else:
