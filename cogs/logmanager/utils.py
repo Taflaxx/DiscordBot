@@ -61,3 +61,10 @@ def split_embed(embed, title, text):
         embed.add_field(name=title, value=text_short, inline=False)
 
     return embed
+
+
+# Timedelta to string
+def strfdelta(tdelta):
+    m, s = divmod(tdelta.seconds, 60)
+    ms = f"{tdelta.microseconds:06d}"[:3]
+    return f"{m:02d}m {s:02d}s {ms} ms"

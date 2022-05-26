@@ -1,9 +1,9 @@
-from datetime import datetime, timezone, time
+from datetime import datetime, timezone, timedelta
 import re
 import aiohttp
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean, Interval
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from cogs.logmanager.utils import boss_abrv, sort_dict
@@ -21,8 +21,7 @@ class Log(Base):
 
     link = Column(String, primary_key=True)
     fight_name = Column(String)
-    # TODO: Change Time to an int when there is a big update to the DB
-    duration = Column(Time)
+    duration = Column(Interval)
     date_time = Column(DateTime)
     players = relationship("Player", back_populates="log")
 
@@ -128,8 +127,8 @@ async def add_log(log):
     log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
 
     # Get fight duration
-    t = datetime.strptime(data["duration"], "%Mm %Ss %fms")
-    log_db.duration = time(minute=t.minute, second=t.second, microsecond=t.microsecond)
+    t = data["duration"].split(" ")
+    log_db.duration = timedelta(minutes=int(t[0][:-1]), seconds=int(t[1][:-1]), microseconds=int(t[2][:-2])*1000)
 
     # Parse json data for each player
     for player in data["players"]:

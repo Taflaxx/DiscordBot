@@ -213,11 +213,11 @@ class LogManager(commands.Cog, name="LogManager"):
                     if query_fastest[i].link == log:
                         if i == 0:
                             # Different text and emoji for first place
-                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {log_db.duration.strftime('%Mm %Ss %f')[:-3]}ms " \
-                                       f"(Old Record: {query_fastest[1].duration.strftime('%Mm %Ss %f')[:-3]}ms)\n"
+                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {strfdelta(log_db.duration)} " \
+                                       f"(Old Record: {strfdelta(query_fastest[1].duration)})\n"
                         else:
-                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {log_db.duration.strftime('%Mm %Ss %f')[:-3]}ms " \
-                                       f"(Record: {query_fastest[0].duration.strftime('%Mm %Ss %f')[:-3]}ms)\n"
+                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {strfdelta(log_db.duration)} " \
+                                       f"(Record: {strfdelta(query_fastest[0].duration)})\n"
                         break
 
             # Check for new DPS records
@@ -264,9 +264,7 @@ class LogManager(commands.Cog, name="LogManager"):
             elif log_db.date_time > last_kill.date_time:
                 last_kill = log_db
 
-        last_kill_duration = timedelta(minutes=last_kill.duration.minute, seconds=last_kill.duration.second,
-                                       microseconds=last_kill.duration.microsecond)
-        end_time = last_kill.date_time + last_kill_duration
+        end_time = last_kill.date_time + last_kill.duration
         # Format clear_time since you cant use str format on a timedelta object
         clear_time = end_time - first_kill.date_time
         clear_time_hours, remainder = divmod(clear_time.total_seconds(), 3600)
@@ -371,8 +369,7 @@ class LogManager(commands.Cog, name="LogManager"):
         query_fastest = query.distinct(Log.link).order_by(Log.duration.asc())
         val = ""
         for i in range(0, min(5, query_fastest.count())):
-            t = query_fastest[i].duration
-            val += f"[{t.strftime('%Mm %Ss %f')[:-3]}ms ({query_fastest[i].date_time.strftime('%B %e, %Y')})]({query_fastest[i].link})\n"
+            val += f"[{strfdelta(query_fastest[i].duration)} ({query_fastest[i].date_time.strftime('%B %e, %Y')})]({query_fastest[i].link})\n"
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
         # Average DPS
@@ -406,9 +403,10 @@ class LogManager(commands.Cog, name="LogManager"):
         # Query DB into a Pandas dataframe
         df = pd.read_sql(db.query(Log.date_time, Log.duration).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
                          .order_by(Log.date_time).statement, db.bind)
-        # Convert datetime.time to int seconds
+        # Convert timedelta to int seconds
         for i in df.index:
-            df.at[i, "duration"] = (df.at[i, "duration"].hour * 60 + df.at[i, "duration"].minute) * 60 + df.at[i, "duration"].second
+            df.at[i, "duration"] = df.at[i, "duration"].seconds
+
         # Create line plot
         df.columns = ["Date", "Fight duration in seconds"]
         filepath, filename = plot_lineplot(df, boss)
