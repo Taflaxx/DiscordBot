@@ -31,6 +31,7 @@ class EmojiDropdown(discord.ui.Select):
 
 
 order_dict = {"Target DPS": Player.dps.desc(),
+              "Breakbar": Player.breakbar.desc(),
               "Damage taken": Player.damage.desc(),
               "Date": Log.date_time.desc(),
               "Duration": Log.duration.asc()}
