@@ -124,7 +124,7 @@ class LogFilterView(discord.ui.View):
 
         # Create paginated log view
         view = LogPaginationView(query, selected_order)
-        await interaction.channel.send(content=filter_str, embed=embed, view=view)
+        view.message = await interaction.channel.send(content=filter_str, embed=embed, view=view)
         self.stop()
 
 
