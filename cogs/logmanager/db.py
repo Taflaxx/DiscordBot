@@ -171,6 +171,7 @@ async def add_log(log):
             db.add(buff_db)
 
         # Add buff generation
+        # TODO: fix this, use squad generation if date is before alac rework and group generation after?
         for buff in player["selfBuffsActive"]:
             buff_db = BuffGeneration(buff=buff["id"])
             buff_db.uptime = buff["buffData"][0]["generation"]

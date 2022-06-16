@@ -155,3 +155,12 @@ bosses = {
             "emoji": "7️⃣",
             "icon": "https://wiki.guildwars2.com/images/8/8b/Mini_Qadim_the_Peerless.png"},
         }
+
+boons = {
+        "Quickness": {
+            "emoji": "<:quickness:987086349666488370>",
+            "icon": "https://wiki.guildwars2.com/images/b/b4/Quickness.png"},
+        "Alacrity": {
+            "emoji": "<:alacrity:987086528389988392>",
+            "icon": "https://wiki.guildwars2.com/images/4/4c/Alacrity.png"}
+    }

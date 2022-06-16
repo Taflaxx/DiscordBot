@@ -2,7 +2,7 @@ import math
 import discord
 from discord import Embed
 from cogs.logmanager.db import *
-from cogs.logmanager.dicts import professions, bosses
+from cogs.logmanager.dicts import professions, bosses, boons
 import itertools
 
 
@@ -43,7 +43,8 @@ class LogFilterView(discord.ui.View):
 
         self.message = None  # the message of this view
         self.user = None  # user that used the slash command
-        self.advanced = AdvancedFilter(self)
+        self.nameModal = NameFilter()
+        self.boonModal = BoonFilter()
 
         # Adds the dropdown to our view object.
         self.add_item(EmojiDropdown(bosses, "Select a Boss", 0, len(bosses)))
@@ -59,9 +60,13 @@ class LogFilterView(discord.ui.View):
         # If search wasn't pressed delete this message on timeout
         await self.message.delete()
 
-    @discord.ui.button(label="Advanced", style=discord.ButtonStyle.gray, row=4)
-    async def advanced(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(self.advanced)
+    @discord.ui.button(label="Name Filter", style=discord.ButtonStyle.gray, row=4)
+    async def name(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(self.nameModal)
+
+    @discord.ui.button(label="Boons Generated", style=discord.ButtonStyle.gray, row=4)
+    async def boons(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(self.boonModal)
 
     @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -77,13 +82,13 @@ class LogFilterView(discord.ui.View):
         await interaction.response.defer()
 
         # Get values
-        selected_bosses: [str] = self.children[2].values
-        selected_professions: [str] = self.children[3].values
-        selected_professions.extend(self.children[4].values)
+        selected_bosses: [str] = self.children[3].values
+        selected_professions: [str] = self.children[4].values
+        selected_professions.extend(self.children[5].values)
 
         # Default to Player.dps if nothing was selected
         selected_order = "Target DPS"
-        if self.children[5].values:
+        if self.children[6].values:
             selected_order = self.children[5].values[0]
 
         # Add CM version of bosses
@@ -94,19 +99,27 @@ class LogFilterView(discord.ui.View):
         filter_str = "__**Search Settings:**__\n"
 
         # Query DB
-        query = db.query(Player).join(Log)
+        query = db.query(Player).join(Log).join(BuffGeneration)
         if selected_bosses:
             query = query.filter(Log.fight_name.in_(selected_bosses))
             filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"
         if selected_professions:
             query = query.filter(Player.profession.in_(selected_professions))
             filter_str += f"**Professions:** {', '.join(selected_professions)}\n"
-        if self.advanced.account.value:
-            query = query.filter(Player.account.ilike(f"%{self.advanced.account.value}%"))
-            filter_str += f"**Account:** {self.advanced.account.value}\n"
-        if self.advanced.character.value:
-            query = query.filter(Player.character.ilike(f"%{self.advanced.character.value}%"))
-            filter_str += f"**Character:** {self.advanced.character.value}\n"
+        if self.nameModal.account.value:
+            query = query.filter(Player.account.ilike(f"%{self.nameModal.account.value}%"))
+            filter_str += f"**Account:** {self.nameModal.account.value}\n"
+        if self.nameModal.character.value:
+            query = query.filter(Player.character.ilike(f"%{self.nameModal.character.value}%"))
+            filter_str += f"**Character:** {self.nameModal.character.value}\n"
+        if self.boonModal.boon.values:
+            val = 40
+            if self.boonModal.value.value.isdigit():
+                if 0 <= int(self.boonModal.value.value) <= 100:
+                    val = int(self.boonModal.value.value)
+            buffID = db.query(BuffMap).filter(BuffMap.name.ilike(f"{self.boonModal.boon.values[0]}")).first().id
+            query = query.filter((BuffGeneration.buff == buffID) & (BuffGeneration.uptime >= val))
+
         query = query.order_by(order_dict[selected_order])
         filter_str += f"**Ordered by:** {selected_order}\n"
 
@@ -124,13 +137,12 @@ class LogFilterView(discord.ui.View):
         self.stop()
 
 
-class AdvancedFilter(discord.ui.Modal, title="Advanced Settings"):
-    def __init__(self, view: LogFilterView):
-        super().__init__()
-        self.view = view
-
+class NameFilter(discord.ui.Modal, title="Name Settings"):
     account = discord.ui.TextInput(label="Account Name", required=False)
     character = discord.ui.TextInput(label="Character Name", required=False)
+
+    def __init__(self):
+        super().__init__()
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -138,6 +150,17 @@ class AdvancedFilter(discord.ui.Modal, title="Advanced Settings"):
         # Show old values as placeholder if modal is opened again
         self.account.placeholder = self.account.value
         self.character.placeholder = self.character.value
+
+
+class BoonFilter(discord.ui.Modal, title="Boon Settings (Generation Self)"):
+    boon = EmojiDropdown(boons, "Select a Boon")
+    value = discord.ui.TextInput(label="Minimum Generation", required=False, placeholder="Number between 0 and 100")
+
+    def __init__(self):
+        super().__init__()
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):
