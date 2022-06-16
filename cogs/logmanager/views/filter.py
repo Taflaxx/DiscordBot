@@ -90,7 +90,7 @@ class LogFilterView(discord.ui.View):
         filter_str = f"{interaction.user.mention}\n__**Search Settings:**__\n"
 
         # Query DB
-        query = db.query(Player).join(Log).join(BuffGeneration)
+        query = db.query(Player).join(Log)
         if selected_bosses:
             query = query.filter(Log.fight_name.in_(selected_bosses))
             filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"
@@ -109,7 +109,7 @@ class LogFilterView(discord.ui.View):
                 if 0 <= int(self.boonModal.value.value) <= 100:
                     val = int(self.boonModal.value.value)
             buff_id = db.query(BuffMap).filter(BuffMap.name.ilike(f"{self.boonModal.boon.values[0]}")).first().id
-            query = query.filter((BuffGeneration.buff == buff_id) & (BuffGeneration.uptime >= val))
+            query = query.join(BuffGeneration).filter((BuffGeneration.buff == buff_id) & (BuffGeneration.uptime >= val))
             filter_str += f"**Minimum Boon Generation:** {val}% {self.boonModal.boon.values[0]}\n"
 
         query = query.order_by(order_dict[selected_order])
