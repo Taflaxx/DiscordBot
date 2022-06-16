@@ -652,9 +652,7 @@ class LogManager(commands.Cog, name="LogManager"):
     async def search_logs(self, interaction: Interaction) -> None:
         view = LogFilterView()
 
-        await interaction.response.send_message(view=view)
-        view.message = await interaction.original_message()
-        view.user = interaction.user
+        await interaction.response.send_message(view=view, ephemeral=True)
 
 
 async def setup(bot):
