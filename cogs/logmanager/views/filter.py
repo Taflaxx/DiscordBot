@@ -38,25 +38,23 @@ order_dict = {"Target DPS": Player.dps.desc(),
 
 
 class LogFilterView(discord.ui.View):
-    # Bosses dropdown
-    bosses = EmojiDropdown(bosses, "Select a Boss", 0, len(bosses))
-
-    # Since limit of dropdown is 25 options: professions are split into 2 dropdowns
-    professions_1 = EmojiDropdown(dict(itertools.islice(professions.items(), 0, 24)), "Select a Profession (Heavy, Medium)", 0, 24)
-    professions_2 = EmojiDropdown(dict(itertools.islice(professions.items(), 24, 36)), "Select a Profession (Light)", 0, 12)
-
-    # Order dropdown
-    order = SimpleDropdown(order_dict.keys(), "Order logs by...", 1, 1)
-
     def __init__(self):
         super().__init__()
         self.nameModal = NameFilter()
         self.boonModal = BoonFilter()
 
         # Adds the dropdowns to our view object
+        self.bosses = EmojiDropdown(bosses, "Select a Boss", 0, len(bosses))
         self.add_item(self.bosses)
+
+        # Since limit of dropdown is 25 options: professions are split into 2 dropdowns
+        self.professions_1 = EmojiDropdown(dict(itertools.islice(professions.items(), 0, 24)), "Select a Profession (Heavy, Medium)", 0, 24)
+        self.professions_2 = EmojiDropdown(dict(itertools.islice(professions.items(), 24, 36)), "Select a Profession (Light)", 0, 12)
         self.add_item(self.professions_1)
         self.add_item(self.professions_2)
+
+        # Order dropdown
+        self.order = SimpleDropdown(order_dict.keys(), "Order logs by...", 1, 1)
         self.add_item(self.order)
 
     @discord.ui.button(label="Name Filter", style=discord.ButtonStyle.gray, row=4)
