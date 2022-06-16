@@ -104,7 +104,7 @@ class LogFilterView(discord.ui.View):
             query = query.filter(Player.character.ilike(f"%{self.nameModal.character.value}%"))
             filter_str += f"**Character:** {self.nameModal.character.value}\n"
         if self.boonModal.boon.values:
-            val = 40
+            val = 60
             if self.boonModal.value.value.isdigit():
                 if 0 <= int(self.boonModal.value.value) <= 100:
                     val = int(self.boonModal.value.value)
@@ -145,7 +145,7 @@ class NameFilter(discord.ui.Modal, title="Name Settings"):
 
 class BoonFilter(discord.ui.Modal, title="Boon Settings (Generation Self)"):
     boon = EmojiDropdown(boons, "Select a Boon")
-    value = discord.ui.TextInput(label="Minimum Generation (Default: 40)", required=False, placeholder="Number between 0 and 100")
+    value = discord.ui.TextInput(label="Minimum Generation (Default: 60)", required=False, placeholder="Number between 0 and 100")
 
     def __init__(self):
         super().__init__()
