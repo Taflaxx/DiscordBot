@@ -155,7 +155,7 @@ class LogManager(commands.Cog, name="LogManager"):
         await response_message.edit(content=f"{response}\nParsed {len(logs)}/{len(logs)} logs.\n"
                                             f"**Added {len(logs) - errors}/{len(logs)} logs to the database.**")
 
-    @commands.hybrid_command(name="weekly", help="Add weekly clear logs from the configured channel")
+    @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
     async def weekly(self, ctx):
         # Get configured channel
         config = configparser.ConfigParser()
