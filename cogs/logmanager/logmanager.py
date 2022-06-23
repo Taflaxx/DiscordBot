@@ -308,14 +308,8 @@ class LogManager(commands.Cog, name="LogManager"):
         with open("config.ini", 'w') as configfile:
             config.write(configfile)
 
-    @log.group(name="stats", help="Log stats")
-    async def stats(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help("log stats")
-            print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
-
-    @stats.command(name="general", help="Show some general stats about the logs")
-    async def stats_general(self, ctx):
+    @app_commands.command(name="stats", description="Show some general stats about the logs")
+    async def stats_general(self, interaction: Interaction) -> None:
         # maybe merge "stats general" with "stats boss", add filter
         embed = Embed(title="Log Stats", color=0x0099ff)
         total_logs = db.query(Log.link).count()
@@ -340,7 +334,7 @@ class LogManager(commands.Cog, name="LogManager"):
         total_deaths = db.query(func.sum(Player.deaths)).all()[0][0]
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
 
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="boss", description="Show boss specific stats")
     async def stats_boss(self, interaction: Interaction,  boss: choices.bosses) -> None:
