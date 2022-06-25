@@ -330,10 +330,10 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
         total_downs = db.query(func.sum(Player.downs)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
-        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}", inline=False)
+        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nAverage: {round(total_downs / total_logs, 1)}", inline=False)
 
         total_deaths = db.query(func.sum(Player.deaths)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
-        embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
+        embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nAverage: {round(total_deaths / total_logs, 1)}")
 
         await interaction.response.send_message(embed=embed)
 
@@ -396,8 +396,8 @@ class LogManager(commands.Cog, name="LogManager"):
         total_downs, total_deaths = db.query(func.sum(Player.downs), func.sum(Player.deaths))\
             .join(Log).filter(Log.guild_id == interaction.guild_id)\
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).first()
-        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}")
-        embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
+        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nAverage: {round(total_downs / total_logs, 1)}")
+        embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nAverage: {round(total_deaths / total_logs, 1)}")
 
         # Creating the fight duration plot
         # Query DB into a Pandas dataframe
