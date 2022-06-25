@@ -112,7 +112,7 @@ bosses = {
             "icon": "https://wiki.guildwars2.com/images/4/4b/Mini_Xera.png"},
 
         # Wing 4
-        "Cairn the Indomitable": {
+        "Cairn": {
             "emoji": "4️⃣",
             "icon": "https://wiki.guildwars2.com/images/b/b8/Mini_Cairn_the_Indomitable.png"},
         "Mursaat Overseer": {

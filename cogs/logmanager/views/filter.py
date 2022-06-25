@@ -67,9 +67,6 @@ class LogFilterView(discord.ui.View):
 
     @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # defer at the beginning to prevent failed interactions in case the db query takes too long
-        await interaction.response.defer()
-
         # Get values
         selected_bosses: [str] = self.bosses.values
         selected_professions: [str] = self.professions_1.values
@@ -88,7 +85,7 @@ class LogFilterView(discord.ui.View):
         filter_str = "__**Search Settings:**__\n"
 
         # Query DB
-        query = db.query(Player).join(Log)
+        query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
         if selected_bosses:
             query = query.filter(Log.fight_name.in_(selected_bosses))
             filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"

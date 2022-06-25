@@ -1,4 +1,6 @@
 import configparser
+
+import discord.ext.commands
 from discord.ext import commands
 from discord import Embed, File, TextChannel, app_commands, Interaction
 import logging
@@ -39,14 +41,14 @@ class LogManager(commands.Cog, name="LogManager"):
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
 
     @log.command(name="add", help="Add logs to the database", usage="[log(s)]")
-    async def add_logs(self, ctx, *, arg):
+    async def add_logs(self, ctx: commands.Context, *, arg):
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", arg)
         message = await ctx.send(f"Found {len(logs)} logs:")
 
         errors = 0  # Tracks the number of errors while adding logs
         for log in logs:
-            r = await add_log(log)
+            r = await add_log(log, ctx.guild.id)
             if r is not None:
                 errors += 1
                 await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
@@ -69,11 +71,11 @@ class LogManager(commands.Cog, name="LogManager"):
                        "-desc\tDescending order\n"
                        "-limit\tNumber of logs to show [1-30, default 10]\n"
                        "-csv\t Export query result as a csv file")
-    async def filter_log(self, ctx, *args):
+    async def filter_log(self, ctx: commands.Context, *args):
         if "-h" in args or "-help" in args:
             await ctx.send_help("log filter")
             return
-        query = db.query(Player).join(Log)
+        query = db.query(Player).join(Log).filter(Log.guild_id == ctx.guild.id)
         query = await filter_args(query, args)
         query, order, limit = await order_args(query, args)
 
@@ -135,7 +137,7 @@ class LogManager(commands.Cog, name="LogManager"):
         # Add logs
         errors = 0  # Tracks the number of errors while adding logs
         for idx, log in enumerate(logs):
-            r = await add_log(log)
+            r = await add_log(log, interaction.guild_id)
             if r is not None:
                 print(r)
                 errors += 1
@@ -157,7 +159,7 @@ class LogManager(commands.Cog, name="LogManager"):
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
-    async def weekly(self, ctx):
+    async def weekly(self, interaction: Interaction):
         # Get configured channel
         config = configparser.ConfigParser()
         config.read("config.ini")
@@ -168,8 +170,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Return if channel has not been configured
         if not channel:
-            await ctx.send("Please configure the weekly clear channel before using this command: \n"
-                           f"{config['Bot']['prefix']}log config weekly <channel>")
+            await interaction.response.send_message(content="Please configure the weekly clear channel before using this command",
+                                                    ephemeral=True)
             return
 
         # Load latest message
@@ -177,20 +179,23 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
-        message = await ctx.send(f"Found {len(logs)} logs:")
+        response = f"**Found {len(logs)} logs...**"
+        await interaction.response.send_message(content=response)
 
         errors = 0  # Tracks the number of errors while adding logs
         added_logs = []
 
         for log in logs:
-            r = await add_log(log)
+            r = await add_log(log, interaction.guild_id)
             if r is not None:
                 errors += 1
-                message = await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
+                response += f"\n{r}"
+                message = await interaction.edit_original_message(content=response)  # update original message with errors
             else:
                 added_logs.append(log)
         db.commit()
-        await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
+        response += f"\nAdded {len(logs) - errors}/{len(logs)} logs to the database."
+        await interaction.edit_original_message(content=response)
 
         # Skip looking for records if no logs were added
         if len(added_logs) == 0:
@@ -205,7 +210,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
             # Get logs from boss
             boss = log_db.fight_name
-            query = db.query(Log)
+            query = db.query(Log).filter(Log.guild_id == interaction.guild_id)
             query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
 
             # Check if boss kill is a new record
@@ -223,9 +228,9 @@ class LogManager(commands.Cog, name="LogManager"):
                         break
 
             # Check for new DPS records
-            log_db = db.query(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()).all()
+            log_db = db.query(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()).first()
             # Get highest DPS players
-            query = db.query(Player).join(Log)
+            query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
             query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
             query_dps = query.order_by(Player.dps.desc()).limit(3).all()
             if len(query_fastest) > 1:
@@ -257,14 +262,9 @@ class LogManager(commands.Cog, name="LogManager"):
         embed = Embed(title="Weekly Clear Stats", color=0x0099ff)
 
         # Calculate clear time
-        first_kill = db.query(Log).filter(Log.link.ilike(added_logs[0])).first()
-        last_kill = db.query(Log).filter(Log.link.ilike(added_logs[0])).first()
-        for log in added_logs:
-            log_db = db.query(Log).filter(Log.link.ilike(log)).first()
-            if log_db.date_time < first_kill.date_time:
-                first_kill = log_db
-            elif log_db.date_time > last_kill.date_time:
-                last_kill = log_db
+        log_times = db.query(Log.date_time, Log.duration).filter(Log.link.in_(added_logs)).order_by(Log.date_time.asc()).all()
+        first_kill = log_times[0]
+        last_kill = log_times[-1]
 
         end_time = last_kill.date_time + last_kill.duration
         # Format clear_time since you cant use str format on a timedelta object
@@ -288,7 +288,7 @@ class LogManager(commands.Cog, name="LogManager"):
         if fgs_stolen != "":
             embed = split_embed(embed, "<:fgs:968188503424897104> **Fiery Greatswords stolen:**", fgs_text)
 
-        await ctx.send(embed=embed)
+        await interaction.edit_original_message(embed=embed)
 
     @commands.is_owner()
     @log.group(name="config", help="Configure the logs cog")
@@ -313,33 +313,33 @@ class LogManager(commands.Cog, name="LogManager"):
     async def stats_general(self, interaction: Interaction) -> None:
         # maybe merge "stats general" with "stats boss", add filter
         embed = Embed(title="Log Stats", color=0x0099ff)
-        total_logs = db.query(Log.link).count()
+        total_logs = db.query(Log.link).filter(Log.guild_id == interaction.guild_id).count()
         embed.add_field(name="Logs:", value=total_logs)
-        embed.add_field(name="Distinct Accounts:", value=db.query(Player.account).distinct().count())
-        embed.add_field(name="Distinct Characters:", value=db.query(Player.character).distinct().count())
+        embed.add_field(name="Distinct Accounts:", value=db.query(Player.account).distinct().filter(Player.guild_id == interaction.guild_id).count())
+        embed.add_field(name="Distinct Characters:", value=db.query(Player.character).distinct().filter(Player.guild_id == interaction.guild_id).count())
 
-        embed.add_field(name="Frequent accounts:", value=most_frequent_embed(db.query(Player.account).all()))
-        embed.add_field(name="Frequent characters:", value=most_frequent_embed(db.query(Player.character).all()))
-        embed.add_field(name="Frequent professions:", value=most_frequent_embed(db.query(Player.profession).all()))
+        embed.add_field(name="Frequent accounts:", value=most_frequent_embed(db.query(Player.account).filter(Player.guild_id == interaction.guild_id).all()))
+        embed.add_field(name="Frequent characters:", value=most_frequent_embed(db.query(Player.character).filter(Player.guild_id == interaction.guild_id).all()))
+        embed.add_field(name="Frequent professions:", value=most_frequent_embed(db.query(Player.profession).filter(Player.guild_id == interaction.guild_id).all()))
 
-        total_players = db.query(Player.id).count()
-        total_dps = db.query(func.sum(Player.dps)).all()[0][0]
+        total_players = db.query(Player.id).filter(Player.guild_id == interaction.guild_id).count()
+        total_dps = db.query(func.sum(Player.dps)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
         embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
 
-        total_damage = db.query(func.sum(Player.damage)).all()[0][0]
+        total_damage = db.query(func.sum(Player.damage)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
-        total_downs = db.query(func.sum(Player.downs)).all()[0][0]
+        total_downs = db.query(func.sum(Player.downs)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
         embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}", inline=False)
 
-        total_deaths = db.query(func.sum(Player.deaths)).all()[0][0]
+        total_deaths = db.query(func.sum(Player.deaths)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
 
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="boss", description="Show boss specific stats")
     async def stats_boss(self, interaction: Interaction,  boss: choices.bosses) -> None:
-        query = db.query(Log).join(Player)
+        query = db.query(Log).join(Player).filter(Log.guild_id == interaction.guild_id)
         query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
 
         if query.count() == 0:
@@ -369,17 +369,22 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
         # Average DPS
-        total_logs = db.query(Log.link).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
-        total_players = db.query(Player.id).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
-        total_dps = db.query(func.sum(Player.dps)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
+        total_logs = db.query(Log.link).filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
+        total_players = db.query(Player.id).join(Log).filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
+        total_dps = db.query(func.sum(Player.dps)).join(Log).filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
 
         # Average Damage
-        total_damage = db.query(func.sum(Player.damage)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
+        total_damage = db.query(func.sum(Player.damage)).join(Log).filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
         # Add top DPS
         top_dps = db.query(Player.character, Player.account, Player.dps, Player.profession, Log.link).join(Log)\
+            .filter(Log.guild_id == interaction.guild_id)\
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
             .order_by(Player.dps.desc()).all()
         top_dps_str = ""
@@ -387,17 +392,17 @@ class LogManager(commands.Cog, name="LogManager"):
             top_dps_str += f"[{top_dps[i][2]} DPS by {top_dps[i][0]} ({top_dps[i][1]}) - {top_dps[i][3]}]({top_dps[i][4]})\n"
         embed.add_field(name="Top DPS:", value=top_dps_str, inline=False)
 
-        # Downs
-        total_downs = db.query(func.sum(Player.downs)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
+        # Downs & Downs
+        total_downs, total_deaths = db.query(func.sum(Player.downs), func.sum(Player.deaths))\
+            .join(Log).filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).first()
         embed.add_field(name="Downs:", value=f"Total: {total_downs}\nPer fight: {round(total_downs / total_logs, 1)}")
-
-        # Deaths
-        total_deaths = db.query(func.sum(Player.deaths)).join(Log).filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nPer fight: {round(total_deaths / total_logs, 1)}")
 
         # Creating the fight duration plot
         # Query DB into a Pandas dataframe
-        df = pd.read_sql(db.query(Log.date_time, Log.duration).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+        df = pd.read_sql(db.query(Log.date_time, Log.duration).filter(Log.guild_id == interaction.guild_id)
+                         .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
                          .order_by(Log.date_time).statement, db.bind)
         # Convert timedelta to int seconds
         for i in df.index:
@@ -412,6 +417,7 @@ class LogManager(commands.Cog, name="LogManager"):
         # Remove file
         os.remove(filepath)
 
+    # TODO: remove??
     @log.command(name="hos")
     async def hall_of_shame(self, ctx):
         embed = Embed(title=f"{self.bot.get_emoji(819226756698603600)} Hall of Shame", color=0x0099ff)
@@ -455,6 +461,13 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.command(name="buffs", description="Show stats about specific buffs at a boss")
     async def buffs(self, interaction: Interaction, boss: choices.bosses, buffs: typing.Optional[str]) -> None:
+        # Check if logs for this boss exists in db
+        boss_db = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
+        if not boss_db:
+            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
+            return
+
         # If no buffs were specified fall back to default
         if not buffs:
             buffs = ["Might", "Quickness", "Alacrity"]
@@ -494,7 +507,9 @@ class LogManager(commands.Cog, name="LogManager"):
                 closest.remove(closest[0])
 
             # Join Tables, filter by boss and buff, group by Log.link
-            query = db.query(Log.date_time, func.avg(BuffUptimes.uptime), column(buff_map[0].name)).join(Player, Log.players).join(BuffUptimes, Player.buff_uptimes) \
+            query = db.query(Log.date_time, func.avg(BuffUptimes.uptime), column(buff_map[0].name)) \
+                .join(Player, Log.players).join(BuffUptimes, Player.buff_uptimes) \
+                .filter(Player.guild_id == interaction.guild_id) \
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
                 .filter(BuffUptimes.buff == buff_map[0].id).group_by(Log.link).all()
             if len(query) < 2:
@@ -539,8 +554,9 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.command(name="mechs", description="Show mechanic stats")
     async def mechs(self, interaction: Interaction, boss: choices.bosses, mechanics: typing.Optional[str]) -> None:
-        # Check if boss exists in db
-        boss_db = db.query(Log.fight_name).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
+        # Check if logs for this boss exists in db
+        boss_db = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
         if not boss_db:
             await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
             return
@@ -551,16 +567,19 @@ class LogManager(commands.Cog, name="LogManager"):
         # If no mechanic was specified
         if not mechanics:
             # List of all mechs on the boss
-            mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics).distinct(Mechanic.description)\
+            mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics)\
+                .filter(Log.guild_id == interaction.guild_id).distinct(Mechanic.description)\
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
 
             # Number of logs of the specified boss
-            fight_number = db.query(Log.fight_name).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).count()
+            fight_number = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).count()
 
             for mech in mech_query:
                 # Total amount of mechanic triggers
                 total_query = db.query(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount))\
-                    .join(Player, Log.players).join(Mechanic, Player.mechanics)\
+                    .join(Player, Log.players).join(Mechanic, Player.mechanics) \
+                    .filter(Log.guild_id == interaction.guild_id)                    \
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
                     .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
                 embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
@@ -586,7 +605,7 @@ class LogManager(commands.Cog, name="LogManager"):
                     continue
                 # If more than 1 match select the closest
                 elif len(mechanic_map) > 1:
-                    # Create list of buff names
+                    # Create list of mechanic names
                     mechanic_matches = []
                     for b in mechanic_map:
                         mechanic_matches.append(b.description)
@@ -603,8 +622,9 @@ class LogManager(commands.Cog, name="LogManager"):
 
                 # Join Tables, filter by boss and mechanic, group by Log.link
                 query = db.query(Log.date_time, func.sum(Mechanic.amount), column(mechanic_map[0].description))\
-                    .join(Player,Log.players)\
+                    .join(Player, Log.players)\
                     .join(Mechanic, Player.mechanics) \
+                    .filter(Log.guild_id == interaction.guild_id)                    \
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
                     .filter(Mechanic.description == mechanic_map[0].description).group_by(Log.link).all()
                 if len(query) < 2:
@@ -619,7 +639,8 @@ class LogManager(commands.Cog, name="LogManager"):
                     # Add buff description to embed
                     description = mechanic_map[0].name
                     # Get all logs where mechanic was not triggered and add them with the amount 0 to the data
-                    log_query = db.query(Log.date_time).filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
+                    log_query = db.query(Log.date_time).filter(Log.guild_id == interaction.guild_id)\
+                        .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
                     for log in log_query:
                         if log[0] not in log_list:
                             data.append([log[0], 0, mechanic_map[0].description])

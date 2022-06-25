@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Floa
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from cogs.logmanager.utils import boss_abrv, sort_dict
+import cogs.logmanager.dicts as dicts
 
 # Init DB
 engine = create_engine("sqlite:///cogs/logmanager/logmanager.db", echo=False)
@@ -20,6 +21,7 @@ class Log(Base):
     __tablename__ = "logs"
 
     link = Column(String, primary_key=True)
+    guild_id = Column(Integer)
     fight_name = Column(String)
     duration = Column(Interval)
     date_time = Column(DateTime)
@@ -31,6 +33,7 @@ class Player(Base):
     __tablename__ = "players"
 
     id = Column(Integer, primary_key=True)
+    guild_id = Column(Integer)
     log_link = Column(String, ForeignKey("logs.link"))
     log = relationship("Log", back_populates="players")
     account = Column(String)
@@ -51,6 +54,7 @@ class BuffUptimes(Base):
     __tablename__ = "buff_uptimes"
 
     id = Column(Integer, primary_key=True)
+    guild_id = Column(Integer)
     player_id = Column(Integer, ForeignKey("players.id"))
     player = relationship("Player", back_populates="buff_uptimes")
     buff = Column(Integer)
@@ -62,6 +66,7 @@ class BuffGeneration(Base):
     __tablename__ = "buff_generation"
 
     id = Column(Integer, primary_key=True)
+    guild_id = Column(Integer)
     player_id = Column(Integer, ForeignKey("players.id"))
     player = relationship("Player", back_populates="buff_generation")
     buff = Column(Integer)
@@ -73,6 +78,7 @@ class Mechanic(Base):
     __tablename__ = "mechanics"
 
     id = Column(Integer, primary_key=True)
+    guild_id = Column(Integer)
     player_id = Column(Integer, ForeignKey("players.id"))
     player = relationship("Player", back_populates="mechanics")
     name = Column(String)
@@ -99,7 +105,7 @@ BuffMap.__table__.create(bind=engine, checkfirst=True)
 db.commit()
 
 
-async def add_log(log):
+async def add_log(log: str, guild_id: int):
     # Check if log already exists in the database
     if db.query(Log).filter_by(link=log).first():
         return f"{log} | Already in Database"
@@ -120,8 +126,12 @@ async def add_log(log):
     if not data["success"]:
         return f"{log} | Boss was not killed"
 
+    # Check if boss is supported
+    if not data["fightName"].replace(" CM", "") in dicts.bosses.keys():
+        return f"{log} | Boss not supported"
+
     # Create log in DB
-    log_db = Log(link=log, fight_name=data["fightName"])
+    log_db = Log(link=log, fight_name=data["fightName"], guild_id=guild_id)
 
     # Convert time to utc
     log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
@@ -141,7 +151,7 @@ async def add_log(log):
             continue
 
         # General stuff
-        player_db = Player(account=player["account"])
+        player_db = Player(account=player["account"], guild_id=guild_id)
         player_db.character = player["name"]
         player_db.profession = player["profession"]
 
@@ -165,7 +175,7 @@ async def add_log(log):
 
         # Add buff uptimes
         for buff in player["buffUptimesActive"]:
-            buff_db = BuffUptimes(buff=buff["id"])
+            buff_db = BuffUptimes(buff=buff["id"], guild_id=guild_id)
             buff_db.uptime = buff["buffData"][0]["uptime"]
             player_db.buff_uptimes.append(buff_db)
             db.add(buff_db)
@@ -173,14 +183,14 @@ async def add_log(log):
         # Add buff generation
         # TODO: fix this, use squad generation if date is before alac rework and group generation after?
         for buff in player["selfBuffsActive"]:
-            buff_db = BuffGeneration(buff=buff["id"])
+            buff_db = BuffGeneration(buff=buff["id"], guild_id=guild_id)
             buff_db.uptime = buff["buffData"][0]["generation"]
             player_db.buff_generation.append(buff_db)
             db.add(buff_db)
 
         # Add mechanics
         for mech in data["mechanics"]:
-            mech_db = Mechanic(name=mech["name"], description=mech["description"], amount=0)
+            mech_db = Mechanic(name=mech["name"], description=mech["description"], amount=0, guild_id=guild_id)
             for mech_data in mech["mechanicsData"]:
                 if mech_data["actor"] == player_db.character:
                     mech_db.amount += 1
