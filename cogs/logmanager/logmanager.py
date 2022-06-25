@@ -102,7 +102,7 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send(embed=embed, content=":exclamation:**Please use the new `/logs` command. "
                                                 "This command might get removed soon.**")
 
-    @commands.is_owner()
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(name="history", description="Search a Discord channel for logs")
     async def parse_channel(self, interaction: Interaction, channel: TextChannel, limit: typing.Optional[int] = None):
         # Get messages
