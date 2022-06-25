@@ -85,7 +85,7 @@ class LogFilterView(discord.ui.View):
             selected_bosses.append(f"{boss} CM")
 
         # Create a string to show the selected values
-        filter_str = f"{interaction.user.mention}\n__**Search Settings:**__\n"
+        filter_str = "__**Search Settings:**__\n"
 
         # Query DB
         query = db.query(Player).join(Log)
@@ -114,15 +114,18 @@ class LogFilterView(discord.ui.View):
         filter_str += f"**Ordered by:** {selected_order}\n"
 
         if query.count() == 0:
-            # Update original message if no logs were found
-            await interaction.response.send_message(content="**:x: No logs found**\n" + filter_str, view=self, ephemeral=True)
+            # Send ephemeral message if no logs were found
+            await interaction.response.send_message(content="**:x: No logs found**\n" + filter_str, ephemeral=True)
             return
+
+        # defer to prevent timeout
+        await interaction.response.defer()
 
         embed = create_log_embed(query, selected_order)
 
         # Create paginated log view
         view = LogPaginationView(query, selected_order)
-        view.message = await interaction.channel.send(content=filter_str, embed=embed, view=view)
+        view.message = await interaction.channel.send(content=f"{interaction.user.mention}\n{filter_str}", embed=embed, view=view)
         self.stop()
 
 
