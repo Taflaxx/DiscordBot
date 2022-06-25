@@ -14,6 +14,8 @@ from cogs.logmanager.views.filter import LogFilterView, create_log_embed
 import cogs.logmanager.choices as choices
 from cogs.logmanager.dicts import bosses
 import typing
+import traceback
+import sys
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -103,8 +105,14 @@ class LogManager(commands.Cog, name="LogManager"):
                                                 "This command might get removed soon.**")
 
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.cooldown(1, 600, key=lambda i: i.guild_id)
     @app_commands.command(name="history", description="Search a Discord channel for logs")
     async def parse_channel(self, interaction: Interaction, channel: TextChannel, limit: typing.Optional[int] = None):
+        # Check if bot can view the given channel
+        if not channel.permissions_for(channel.guild.me).read_messages:
+            await interaction.response.send_message(content="I don't have permissions to view that channel", ephemeral=True)
+            return
+
         # Get messages
         messages = channel.history(limit=limit)
 
@@ -139,6 +147,14 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await response_message.edit(content=f"{response}\nParsed {len(logs)}/{len(logs)} logs.\n"
                                             f"**Added {len(logs) - errors}/{len(logs)} logs to the database.**")
+
+    @parse_channel.error
+    async def on_parse_channel_error(self, interaction: Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(str(error), ephemeral=True)
+        else:
+            # Print Traceback in case of different errors
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
     async def weekly(self, ctx):
