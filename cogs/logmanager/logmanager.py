@@ -10,7 +10,7 @@ from sqlalchemy import func, column
 import pandas as pd
 import difflib
 from datetime import datetime, timezone, timedelta
-from cogs.logmanager.views.filter import LogFilterView
+from cogs.logmanager.views.filter import LogFilterView, create_log_embed
 import cogs.logmanager.choices as choices
 from cogs.logmanager.dicts import bosses
 import typing
@@ -98,22 +98,7 @@ class LogManager(commands.Cog, name="LogManager"):
                 await ctx.send("**:x: Invalid limit**")
                 return
 
-            embed = Embed(title="Top Logs", color=0x0099ff)
-            val = ""
-            for i in range(0, min(limit, query.count(), 30)):
-                row = query[i]
-                val += f"[{i + 1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
-                       f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
-                # Split into a new field every 5 logs because of character limits
-                if (i + 1) % 5 == 0:
-                    embed.add_field(name=f"Sorted by {order} [{i - 3} - {i+1}]:", value=val)
-                    val = ""
-                # Make sure embed is added when < 5 logs are left
-                elif i + 1 == query.count():
-                    embed.add_field(name=f"Sorted by {order}:", value=val)
-                # For better formatting (max 2 fields next to each other) add an invisible field
-                if (i + 1) % 10 == 0:
-                    embed.add_field(name="\u200b", value="\u200b")
+            embed = create_log_embed(query, order, 0, min(limit, query.count(), 30))
             await ctx.send(embed=embed, content=":exclamation:**Please use the new `/logs` command. "
                                                 "This command might get removed soon.**")
 
