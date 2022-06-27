@@ -1,11 +1,12 @@
 from discord.ext import commands
+import typing
 
 
 class Owner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_group(name="owner", hidden=True)
+    @commands.group(name="owner", hidden=True)
     @commands.is_owner()
     async def owner(self, ctx):
         if ctx.invoked_subcommand is None:
@@ -79,11 +80,14 @@ class Owner(commands.Cog):
 
     @owner.command("sync")
     @commands.is_owner()
-    async def sync(self, ctx: commands.Context) -> None:
-        self.bot.tree.copy_global_to(guild=ctx.guild)
-        await self.bot.tree.sync(guild=ctx.guild)
-
-        await ctx.send("Synced commands to this guild")
+    async def sync(self, ctx: commands.Context, sync_global: typing.Optional[bool] = False) -> None:
+        if sync_global:
+            await self.bot.tree.sync()
+            await ctx.send("Synced commands globally")
+        else:
+            self.bot.tree.copy_global_to(guild=ctx.guild)
+            await self.bot.tree.sync(guild=ctx.guild)
+            await ctx.send("Synced commands to this guild")
 
 
 async def setup(bot):
