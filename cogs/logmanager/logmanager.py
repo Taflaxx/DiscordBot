@@ -1,6 +1,4 @@
 import configparser
-
-import discord.ext.commands
 from discord.ext import commands
 from discord import Embed, File, TextChannel, app_commands, Interaction
 import logging
@@ -34,12 +32,14 @@ class LogManager(commands.Cog, name="LogManager"):
     def cog_unload(self):
         pass
 
+    @commands.guild_only()
     @commands.group(name="log", aliases=["l"], help="For all your logging needs")
     async def log(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send_help("log")
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
 
+    @commands.guild_only()
     @log.command(name="add", help="Add logs to the database", usage="[log(s)]")
     async def add_logs(self, ctx: commands.Context, *, arg):
         # Find all links to logs in the message
@@ -55,6 +55,7 @@ class LogManager(commands.Cog, name="LogManager"):
         db.commit()
         await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
 
+    @commands.guild_only()
     @log.command(name="filter", aliases=["f"], help="Search for logs",
                  usage="\nOptions:\n"
                        "-h, -help\tShows this page\n"
@@ -106,6 +107,7 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send(embed=embed, content=":exclamation:**Please use the new `/logs` command. "
                                                 "This command might get removed soon.**")
 
+    @app_commands.guild_only
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.cooldown(1, 600, key=lambda i: i.guild_id)
     @app_commands.command(name="history", description="Search a Discord channel for logs")
@@ -158,6 +160,7 @@ class LogManager(commands.Cog, name="LogManager"):
             # Print Traceback in case of different errors
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+    @app_commands.guild_only
     @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
     async def weekly(self, interaction: Interaction):
         # Get configured channel
@@ -290,6 +293,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await interaction.edit_original_message(embed=embed)
 
+    @app_commands.guild_only
     @commands.is_owner()
     @log.group(name="config", help="Configure the logs cog")
     async def config(self, ctx):
@@ -297,6 +301,7 @@ class LogManager(commands.Cog, name="LogManager"):
             await ctx.send_help("log config")
             print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
 
+    @app_commands.guild_only
     @config.command(name="weekly")
     async def config_weekly(self, ctx, channel: TextChannel):
         # Set configured channel
@@ -309,6 +314,7 @@ class LogManager(commands.Cog, name="LogManager"):
         with open("config.ini", 'w') as configfile:
             config.write(configfile)
 
+    @app_commands.guild_only
     @app_commands.command(name="stats", description="Show some general stats about the logs")
     async def stats_general(self, interaction: Interaction) -> None:
         # maybe merge "stats general" with "stats boss", add filter
@@ -337,6 +343,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.guild_only
     @app_commands.command(name="boss", description="Show boss specific stats")
     async def stats_boss(self, interaction: Interaction,  boss: choices.bosses) -> None:
         query = db.query(Log).join(Player).filter(Log.guild_id == interaction.guild_id)
@@ -418,6 +425,7 @@ class LogManager(commands.Cog, name="LogManager"):
         os.remove(filepath)
 
     # TODO: remove??
+    @commands.is_owner()
     @log.command(name="hos")
     async def hall_of_shame(self, ctx):
         embed = Embed(title=f"{self.bot.get_emoji(819226756698603600)} Hall of Shame", color=0x0099ff)
@@ -459,6 +467,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await ctx.send(embed=embed)
 
+    @app_commands.guild_only
     @app_commands.command(name="buffs", description="Show stats about specific buffs at a boss")
     async def buffs(self, interaction: Interaction, boss: choices.bosses, buffs: typing.Optional[str]) -> None:
         # Check if logs for this boss exists in db
@@ -552,6 +561,7 @@ class LogManager(commands.Cog, name="LogManager"):
             # Remove file
             os.remove(filepath)
 
+    @app_commands.guild_only
     @app_commands.command(name="mechs", description="Show mechanic stats")
     async def mechs(self, interaction: Interaction, boss: choices.bosses, mechanics: typing.Optional[str]) -> None:
         # Check if logs for this boss exists in db
@@ -664,6 +674,7 @@ class LogManager(commands.Cog, name="LogManager"):
                 # Remove file
                 os.remove(filepath)
 
+    @app_commands.guild_only
     @app_commands.command(name="logs", description="Search for logs")
     async def search_logs(self, interaction: Interaction) -> None:
         view = LogFilterView()
