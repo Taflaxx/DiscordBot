@@ -21,7 +21,7 @@ config.read('config.ini')
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix=config["Bot"]["Prefix"], intents=intents)
+bot = commands.Bot(command_prefix=config["Bot"]["Prefix"], intents=intents, activity=discord.Activity(type=discord.ActivityType.watching, name="your logs"))
 
 
 @bot.event
@@ -37,4 +37,4 @@ async def on_ready():
             print(f"Failed to load {cog}: {e}")
 
 if __name__ == '__main__':
-    bot.run(config["Discord"]["Token"])
+    bot.run(token=config["Discord"]["Token"])
