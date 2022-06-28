@@ -164,16 +164,12 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
     async def weekly(self, interaction: Interaction):
         # Get configured channel
-        config = configparser.ConfigParser()
-        config.read("config.ini")
-        channel = None
-        if config.has_section("LogManager"):
-            if config.has_option("LogManager", "WeeklyChannel"):
-                channel = self.bot.get_channel(int(config["LogManager"]["WeeklyChannel"]))
-
+        channel = db.query(Config.log_channel_id).filter(Config.guild_id == interaction.guild_id).scalar()
+        channel = self.bot.get_channel(channel)
         # Return if channel has not been configured
         if not channel:
-            await interaction.response.send_message(content="Please configure the weekly clear channel before using this command",
+            await interaction.response.send_message(content="Please configure the log channel before using this command\n"
+                                                            "Admins can use `/config weekly` to set it",
                                                     ephemeral=True)
             return
 
@@ -299,16 +295,21 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.checks.has_permissions(administrator=True)
     @config_group.command(name="weekly", description="Set the channel the clear logs are posted in")
     async def config_weekly(self, interaction: Interaction, channel: TextChannel) -> None:
-        # Set configured channel
-        config = configparser.ConfigParser()
-        config.read("config.ini")
-        if not config.has_section("LogManager"):
-            config.add_section("LogManager")
-        config.set("LogManager", "WeeklyChannel", str(channel.id))
+        # Check if bot can view the given channel
+        if not channel.permissions_for(channel.guild.me).read_messages:
+            await interaction.response.send_message(content="I don't have permissions to view that channel", ephemeral=True)
+            return
 
-        with open("config.ini", 'w') as configfile:
-            config.write(configfile)
-
+        # Add to DB
+        config = db.query(Config).filter(Config.guild_id == interaction.guild_id).first()
+        if config:
+            print("a", config)
+            config.log_channel_id = channel.id
+        else:
+            print("b", config)
+            config = Config(guild_id=interaction.guild_id, log_channel_id=channel.id)
+            db.add(config)
+        db.commit()
         await interaction.response.send_message(content=f"Set channel to {channel.mention}")
 
     @app_commands.guild_only

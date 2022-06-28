@@ -97,11 +97,22 @@ class BuffMap(Base):
     description = Column(String)
 
 
+class Config(Base):
+    __bind_key__ = "logmanager"
+    __tablename__ = "config"
+
+    guild_id = Column(Integer, primary_key=True)
+    log_channel_id = Column(Integer)
+
+
 Base.metadata.create_all(engine)
 Log.__table__.create(bind=engine, checkfirst=True)
 Player.__table__.create(bind=engine, checkfirst=True)
 BuffUptimes.__table__.create(bind=engine, checkfirst=True)
+BuffGeneration.__table__.create(bind=engine, checkfirst=True)
+Mechanic.__table__.create(bind=engine, checkfirst=True)
 BuffMap.__table__.create(bind=engine, checkfirst=True)
+Config.__table__.create(bind=engine, checkfirst=True)
 db.commit()
 
 
