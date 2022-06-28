@@ -138,11 +138,13 @@ class LogManager(commands.Cog, name="LogManager"):
         # Add logs
         errors = 0  # Tracks the number of errors while adding logs
         for idx, log in enumerate(logs):
+            # "Ignore" errors here as very old logs with weird bugs/changes might get added that can just be ignored
             try:
                 r = await add_log(log, interaction.guild_id)
             except Exception as error:
                 r = error
                 traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
             if r is not None:
                 print(r)
                 errors += 1
