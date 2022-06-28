@@ -177,7 +177,11 @@ async def add_log(log: str, guild_id: int):
                 player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
 
         # Add breakbar
-        player_db.breakbar = player["dpsAll"][0]["breakbarDamage"]
+        if "breakbarDamage" in player["dpsAll"][0]:
+            player_db.breakbar = player["dpsAll"][0]["breakbarDamage"]
+        else:
+            # Old logs might not have a breakbar stat
+            player_db.breakbar = 0
 
         # Add defensive stats
         player_db.damage = player["defenses"][0]["damageTaken"]
