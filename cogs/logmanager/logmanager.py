@@ -1,4 +1,3 @@
-import configparser
 from discord.ext import commands
 from discord import Embed, File, TextChannel, app_commands, Interaction
 import logging
@@ -9,7 +8,7 @@ from cogs.logmanager.db import *
 from sqlalchemy import func, column
 import pandas as pd
 import difflib
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from cogs.logmanager.views.filter import LogFilterView, create_log_embed
 import cogs.logmanager.choices as choices
 from cogs.logmanager.dicts import bosses
@@ -178,22 +177,24 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Find all links to logs in the message
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
-        response = f"**Found {len(logs)} logs...**"
+        response = f"**Found {len(logs)} logs:**"
         await interaction.response.send_message(content=response)
 
         errors = 0  # Tracks the number of errors while adding logs
+        error_str = ""
         added_logs = []
 
         for log in logs:
             r = await add_log(log, interaction.guild_id)
             if r is not None:
                 errors += 1
-                response += f"\n{r}"
-                message = await interaction.edit_original_message(content=response)  # update original message with errors
+                error_str += f"\n{r}"
             else:
                 added_logs.append(log)
+            await interaction.edit_original_message(content=f"{response}\nParsed {len(added_logs) + errors}/{len(logs)} logs.")
         db.commit()
-        response += f"\nAdded {len(logs) - errors}/{len(logs)} logs to the database."
+        response += f"\nParsed {len(logs)}/{len(logs)} logs."
+        response += f"\n**Added {len(logs) - errors}/{len(logs)} logs to the database.**{error_str}"
         await interaction.edit_original_message(content=response)
 
         # Skip looking for records if no logs were added
@@ -303,10 +304,8 @@ class LogManager(commands.Cog, name="LogManager"):
         # Add to DB
         config = db.query(Config).filter(Config.guild_id == interaction.guild_id).first()
         if config:
-            print("a", config)
             config.log_channel_id = channel.id
         else:
-            print("b", config)
             config = Config(guild_id=interaction.guild_id, log_channel_id=channel.id)
             db.add(config)
         db.commit()
