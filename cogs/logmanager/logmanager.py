@@ -293,17 +293,12 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await interaction.edit_original_message(embed=embed)
 
-    @app_commands.guild_only
-    @commands.is_owner()
-    @log.group(name="config", help="Configure the logs cog")
-    async def config(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help("log config")
-            print(f"Unknown subcommand \"{ctx.message.content}\" by {ctx.author}. Sent help page")
+    config_group = app_commands.Group(name="config", description="Configure the bot")
 
     @app_commands.guild_only
-    @config.command(name="weekly")
-    async def config_weekly(self, ctx, channel: TextChannel):
+    @app_commands.checks.has_permissions(administrator=True)
+    @config_group.command(name="weekly", description="Set the channel the clear logs are posted in")
+    async def config_weekly(self, interaction: Interaction, channel: TextChannel) -> None:
         # Set configured channel
         config = configparser.ConfigParser()
         config.read("config.ini")
@@ -313,6 +308,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
         with open("config.ini", 'w') as configfile:
             config.write(configfile)
+
+        await interaction.response.send_message(content=f"Set channel to {channel.mention}")
 
     @app_commands.guild_only
     @app_commands.command(name="stats", description="Show some general stats about the logs")
