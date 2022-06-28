@@ -314,6 +314,15 @@ class LogManager(commands.Cog, name="LogManager"):
         db.commit()
         await interaction.response.send_message(content=f"Set channel to {channel.mention}")
 
+    @config_weekly.error
+    async def on_parse_channel_error(self, interaction: Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message(content="Only Administrators of the server can use this command.",
+                                                    ephemeral=True)
+        else:
+            # Print Traceback in case of different errors
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
     @app_commands.guild_only
     @app_commands.command(name="stats", description="Show some general stats about the logs")
     async def stats_general(self, interaction: Interaction) -> None:
