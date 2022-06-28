@@ -155,6 +155,9 @@ class LogManager(commands.Cog, name="LogManager"):
     async def on_parse_channel_error(self, interaction: Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandOnCooldown):
             await interaction.response.send_message(str(error), ephemeral=True)
+        elif isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message(content="Only Administrators of the server can use this command.",
+                                                    ephemeral=True)
         else:
             # Print Traceback in case of different errors
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
