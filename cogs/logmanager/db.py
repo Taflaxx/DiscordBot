@@ -154,7 +154,7 @@ async def add_log(log: str, guild_id: int):
     # Parse json data for each player
     for player in data["players"]:
         # Check if the player is an actual player and not a NPC
-        if not re.match("^[a-zA-Z]+\.(\d{4})$", player["account"]):
+        if not re.match("^[a-zA-Z\s]+\.(\d{4})$", player["account"]):
             continue
 
         # Player was probably dead the entire fight or switched character mid-fight, so we can skip
