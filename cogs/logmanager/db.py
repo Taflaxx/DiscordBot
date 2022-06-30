@@ -25,7 +25,7 @@ class Log(Base):
     fight_name = Column(String)
     duration = Column(Interval)
     date_time = Column(DateTime)
-    players = relationship("Player", back_populates="log")
+    players = relationship("Player", back_populates="log", cascade="all, delete, delete-orphan")
 
 
 class Player(Base):
@@ -44,9 +44,9 @@ class Player(Base):
     damage = Column(Integer)
     downs = Column(Integer)
     deaths = Column(Integer)
-    buff_generation = relationship("BuffGeneration", back_populates="player")
-    buff_uptimes = relationship("BuffUptimes", back_populates="player")
-    mechanics = relationship("Mechanic", back_populates="player")
+    buff_generation = relationship("BuffGeneration", back_populates="player", cascade="all, delete, delete-orphan")
+    buff_uptimes = relationship("BuffUptimes", back_populates="player", cascade="all, delete, delete-orphan")
+    mechanics = relationship("Mechanic", back_populates="player", cascade="all, delete, delete-orphan")
 
 
 class BuffUptimes(Base):

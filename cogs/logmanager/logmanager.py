@@ -10,6 +10,7 @@ import pandas as pd
 import difflib
 from datetime import datetime, timezone
 from cogs.logmanager.views.filter import LogFilterView, create_log_embed
+from cogs.logmanager.views.confirmation import ConfirmationView
 import cogs.logmanager.choices as choices
 from cogs.logmanager.dicts import bosses
 import typing
@@ -701,6 +702,64 @@ class LogManager(commands.Cog, name="LogManager"):
         view = LogFilterView()
 
         await interaction.response.send_message(view=view, ephemeral=True)
+
+    @app_commands.command(name="reindex", description="Reindex the Database")
+    @app_commands.guilds(688413515366531139)
+    @app_commands.choices(mode=[
+        app_commands.Choice(name="All", value=0),
+        app_commands.Choice(name="< 10 Players", value=1)
+    ])
+    async def reindex(self, interaction: Interaction, mode: app_commands.Choice[int]):
+        # Make sure user is bot owner
+        # TODO: fix when updating to newer discord.py version
+        if not interaction.user.id == 100226718182170624:
+            await interaction.response.send_message(content=f"Only the bot owner can use this command", ephemeral=True)
+            return
+
+        # Query relevant logs
+        query = db.query(Log)
+        match mode.value:
+            case 1:
+                # Find logs with less than 10 players
+                query = query.outerjoin(Log.players).group_by(Log).having(func.count(Log.players) < 10)
+
+        if query.count() == 0:
+            await interaction.response.send_message(content=f"No logs found", ephemeral=True)
+            return
+
+        await interaction.response.send_message(content=f"Are you sure you want to reindex {query.count()} logs?",
+                                                ephemeral=True, view=ConfirmationView(self.reindex_db, query))
+        return
+
+    async def reindex_db(self, interaction: Interaction, query):
+        # Send confirmation message
+        response = f"**Updating {query.count()} logs:**"
+        await interaction.response.send_message(content=response)
+        # Get full message instead of interaction message to prevent webhook timeout
+        response_message = await interaction.original_message()
+        response_message = await response_message.fetch()
+
+        # Delete all logs from db and then add them again to update values
+        errors = 0
+        for idx, log in enumerate(query):
+            db.delete(log)
+            # "Ignore" errors here as very old logs with weird bugs/changes might get added that can just be ignored
+            try:
+                r = await add_log(log=log.link, guild_id=log.guild_id)
+            except Exception as error:
+                r = error
+                traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+            if r is not None:
+                print(r)
+                errors += 1
+
+            # Periodically update user on progress
+            if (idx + 1) % 10 == 0:
+                await response_message.edit(content=f"{response}\nParsed {idx + 1}/{query.count()} logs.")
+                db.commit()
+        await response_message.edit(content=f"{response}\nParsed {query.count()}/{query.count()} logs.\n"
+                                            f"**Added {query.count() - errors}/{query.count()} logs to the database.**")
 
 
 async def setup(bot):
