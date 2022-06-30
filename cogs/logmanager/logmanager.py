@@ -741,6 +741,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Delete all logs from db and then add them again to update values
         errors = 0
+        error_str = ""
+        count = query.count()
         for idx, log in enumerate(query):
             db.delete(log)
             # "Ignore" errors here as very old logs with weird bugs/changes might get added that can just be ignored
@@ -753,13 +755,14 @@ class LogManager(commands.Cog, name="LogManager"):
             if r is not None:
                 print(r)
                 errors += 1
+                error_str += f"\n{r}"
 
             # Periodically update user on progress
             if (idx + 1) % 10 == 0:
-                await response_message.edit(content=f"{response}\nParsed {idx + 1}/{query.count()} logs.")
+                await response_message.edit(content=f"{response}\nParsed {idx + 1}/{count} logs.{error_str}")
                 db.commit()
-        await response_message.edit(content=f"{response}\nParsed {query.count()}/{query.count()} logs.\n"
-                                            f"**Added {query.count() - errors}/{query.count()} logs to the database.**")
+        await response_message.edit(content=f"{response}\nParsed {count}/{count} logs.{error_str}\n"
+                                            f"**Added {count - errors}/{count} logs to the database.**")
 
 
 async def setup(bot):
