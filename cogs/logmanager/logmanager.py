@@ -107,8 +107,8 @@ class LogManager(commands.Cog, name="LogManager"):
                                                 "This command might get removed soon.**")
 
     @app_commands.guild_only
-    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.cooldown(1, 600, key=lambda i: i.guild_id)
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(name="history", description="Search a Discord channel for logs")
     async def parse_channel(self, interaction: Interaction, channel: TextChannel, limit: typing.Optional[int] = None):
         # Check if bot can view the given channel
