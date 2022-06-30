@@ -108,6 +108,7 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.checks.cooldown(1, 600, key=lambda i: i.guild_id)
+    @app_commands.checks.bot_has_permissions(send_messages=True) # Need send_messages perm here to update progress
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(name="history", description="Search a Discord channel for logs")
     async def parse_channel(self, interaction: Interaction, channel: TextChannel, limit: typing.Optional[int] = None):
@@ -163,6 +164,11 @@ class LogManager(commands.Cog, name="LogManager"):
             await interaction.response.send_message(str(error), ephemeral=True)
         elif isinstance(error, app_commands.MissingPermissions):
             await interaction.response.send_message(content="Only Administrators of the server can use this command.",
+                                                    ephemeral=True)
+        elif isinstance(error, app_commands.BotMissingPermissions):
+            await interaction.response.send_message(content=f"I don't have permissions to send messages in "
+                                                            f"{interaction.channel.mention}\n"
+                                                            f"Missing Permissions: {error.missing_permissions}",
                                                     ephemeral=True)
         else:
             # Print Traceback in case of different errors
