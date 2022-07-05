@@ -244,7 +244,7 @@ class LogManager(commands.Cog, name="LogManager"):
                         break
 
             # Check for new DPS records
-            log_db = db.query(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()).first()
+            log_db = db.query(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()).all()
             # Get highest DPS players
             query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
             query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
