@@ -703,6 +703,29 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await interaction.response.send_message(view=view, ephemeral=True)
 
+    @app_commands.guild_only
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.command(name="delete", description="Delete logs [Admin only]")
+    @app_commands.describe(logs="Logs you want to delete")
+    async def delete_logs(self, interaction: Interaction, logs: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        # Find all logs in message
+        logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", logs)
+
+        response = ""
+        for log in logs:
+            # Find log in DB
+            query = db.query(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.link == log)
+            # Check if log exists in db
+            if query.count() == 0:
+                response += f"{log} | Not found\n"
+            else:
+                query.delete()
+                response += f"{log} | Deleted\n"
+
+        db.commit()
+        await interaction.followup.send(content=response, ephemeral=True)
+
     @app_commands.command(name="reindex", description="Reindex the Database")
     @app_commands.guilds(688413515366531139)
     @app_commands.choices(mode=[
