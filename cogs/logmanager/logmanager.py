@@ -720,7 +720,7 @@ class LogManager(commands.Cog, name="LogManager"):
             if query.count() == 0:
                 response += f"{log} | Not found\n"
             else:
-                query.delete()
+                db.delete(query.scalar())
                 response += f"{log} | Deleted\n"
 
         db.commit()
