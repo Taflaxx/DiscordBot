@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, func
 from cogs.logmanager.utils import boss_abrv, sort_dict
 import cogs.logmanager.dicts as dicts
 
+
 # Init DB
 engine = create_engine("sqlite:///cogs/logmanager/logmanager.db", echo=False)
 Session = sessionmaker(bind=engine)
@@ -26,6 +27,7 @@ class Log(Base):
     duration = Column(Interval)
     date_time = Column(DateTime)
     players = relationship("Player", back_populates="log", cascade="all, delete, delete-orphan")
+    emboldened = Column(Integer)
 
 
 class Player(Base):
@@ -151,6 +153,9 @@ async def add_log(log: str, guild_id: int):
     t = data["duration"].split(" ")
     log_db.duration = timedelta(minutes=int(t[0][:-1]), seconds=int(t[1][:-1]), microseconds=int(t[2][:-2])*1000)
 
+    # Set initial emboldened value
+    log_db.emboldened = 0
+
     # Parse json data for each player
     for player in data["players"]:
         # Check if the player is an actual player and not a NPC
@@ -195,8 +200,11 @@ async def add_log(log: str, guild_id: int):
             player_db.buff_uptimes.append(buff_db)
             db.add(buff_db)
 
+            # Check for emboldened
+            if buff["id"] == 68087:
+                log_db.emboldened = max(log_db.emboldened, round(buff["buffData"][0]["uptime"]))
+
         # Add buff generation
-        # TODO: fix this, use squad generation if date is before alac rework and group generation after?
         for buff in player["selfBuffsActive"]:
             buff_db = BuffGeneration(buff=buff["id"], guild_id=guild_id)
             buff_db.uptime = buff["buffData"][0]["generation"]
