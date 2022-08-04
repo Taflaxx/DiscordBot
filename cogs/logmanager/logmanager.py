@@ -368,11 +368,15 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.guild_only
     @app_commands.command(name="boss", description="Show boss specific stats")
     async def stats_boss(self, interaction: Interaction,  boss: choices.bosses) -> None:
+        # Defer to prevent interaction timeout
+        await interaction.response.defer()
+
+        # Get all logs of the selected boss
         query = db.query(Log).join(Player).filter(Log.guild_id == interaction.guild_id)
         query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
 
         if query.count() == 0:
-            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
+            await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
 
         # Create embed
@@ -442,7 +446,7 @@ class LogManager(commands.Cog, name="LogManager"):
         filepath, filename = plot_lineplot(df, boss)
         # Add file to embed and send it
         embed.set_image(url=f"attachment://{filename}")
-        await interaction.response.send_message(embed=embed, file=File(filepath))
+        await interaction.followup.send(embed=embed, file=File(filepath))
         # Remove file
         os.remove(filepath)
 
@@ -492,11 +496,14 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.guild_only
     @app_commands.command(name="buffs", description="Show stats about specific buffs at a boss")
     async def buffs(self, interaction: Interaction, boss: choices.bosses, buffs: typing.Optional[str]) -> None:
+        # Defer to prevent interaction timeout
+        await interaction.response.defer()
+
         # Check if logs for this boss exists in db
         boss_db = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
             .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
         if not boss_db:
-            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
+            await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
 
         # If no buffs were specified fall back to default
@@ -573,24 +580,27 @@ class LogManager(commands.Cog, name="LogManager"):
             embed.title = f"{buff_map[0].name} on {boss}"
         # Check if dataframe actually contains any data
         if df.empty:
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
         else:
             # Create line plot and add it to embed
             filepath, filename = plot_lineplot(df, boss, "Boon", True)
             embed.set_image(url=f"attachment://{filename}")
             # Suggest other close matches
-            await interaction.response.send_message(embed=embed, file=File(filepath))
+            await interaction.followup.send(embed=embed, file=File(filepath))
             # Remove file
             os.remove(filepath)
 
     @app_commands.guild_only
     @app_commands.command(name="mechs", description="Show mechanic stats")
     async def mechs(self, interaction: Interaction, boss: choices.bosses, mechanics: typing.Optional[str]) -> None:
+        # Defer to prevent interaction timeout
+        await interaction.response.defer()
+
         # Check if logs for this boss exists in db
         boss_db = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
             .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
         if not boss_db:
-            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
+            await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
 
         embed = Embed(title=f"Mechanics", color=0x0099ff)
@@ -615,7 +625,7 @@ class LogManager(commands.Cog, name="LogManager"):
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
                     .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
                 embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
 
         else:
             # Allow comma seperated mechs
@@ -686,13 +696,13 @@ class LogManager(commands.Cog, name="LogManager"):
                 embed.title = f"{mechanic_map[0].description} on {boss}"
             # Check if dataframe actually contains any data
             if df.empty:
-                await interaction.response.send_message(embed=embed)
+                await interaction.followup.send(embed=embed)
             else:
                 # Create line plot and add it to embed
                 filepath, filename = plot_lineplot(df, boss, "Mechanic", False)
                 embed.set_image(url=f"attachment://{filename}")
                 # Suggest other close matches
-                await interaction.response.send_message(embed=embed, file=File(filepath))
+                await interaction.followup.send(embed=embed, file=File(filepath))
                 # Remove file
                 os.remove(filepath)
 
