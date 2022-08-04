@@ -193,16 +193,17 @@ async def add_log(log: str, guild_id: int):
         player_db.downs = player["defenses"][0]["downCount"]
         player_db.deaths = player["defenses"][0]["deadCount"]
 
+        # Check for emboldened
+        for buff in player["buffUptimes"]:
+            if buff["id"] == 68087:
+                log_db.emboldened = max(log_db.emboldened, round(buff["buffData"][0]["uptime"]))
+
         # Add buff uptimes
         for buff in player["buffUptimesActive"]:
             buff_db = BuffUptimes(buff=buff["id"], guild_id=guild_id)
             buff_db.uptime = buff["buffData"][0]["uptime"]
             player_db.buff_uptimes.append(buff_db)
             db.add(buff_db)
-
-            # Check for emboldened
-            if buff["id"] == 68087:
-                log_db.emboldened = max(log_db.emboldened, round(buff["buffData"][0]["uptime"]))
 
         # Add buff generation
         for buff in player["selfBuffsActive"]:
