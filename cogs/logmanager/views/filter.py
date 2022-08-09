@@ -85,7 +85,7 @@ class LogFilterView(discord.ui.View):
         filter_str = "__**Search Settings:**__\n"
 
         # Query DB
-        query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
+        query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.emboldened == 0)
         if selected_bosses:
             query = query.filter(Log.fight_name.in_(selected_bosses))
             filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"

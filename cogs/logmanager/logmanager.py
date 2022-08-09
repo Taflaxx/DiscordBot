@@ -224,6 +224,10 @@ class LogManager(commands.Cog, name="LogManager"):
             # Get log from db
             log_db = db.query(Log).filter(Log.link.ilike(log)).first()
 
+            # Ignore emboldened records
+            if log_db.emboldened > 0:
+                continue
+
             # Get logs from boss
             boss = log_db.fight_name
             query = db.query(Log).filter(Log.guild_id == interaction.guild_id)
@@ -395,16 +399,16 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.add_field(name="Number of kills:", value=query.distinct(Log.link).count())
 
         # Fastest kills
-        query_fastest = query.distinct(Log.link).order_by(Log.duration.asc())
+        query_fastest = query.distinct(Log.link).filter(Log.emboldened == 0).order_by(Log.duration.asc())
         val = ""
         for i in range(0, min(5, query_fastest.count())):
             val += f"[{strfdelta(query_fastest[i].duration)} ({query_fastest[i].date_time.strftime('%B %e, %Y')})]({query_fastest[i].link})\n"
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
         # Average DPS
-        total_logs = db.query(Log.link).filter(Log.guild_id == interaction.guild_id)\
+        total_logs = db.query(Log.link).filter(Log.guild_id == interaction.guild_id) \
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
-        total_players = db.query(Player.id).join(Log).filter(Log.guild_id == interaction.guild_id)\
+        total_players = db.query(Player.id).join(Log).filter(Log.guild_id == interaction.guild_id) \
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
         total_dps = db.query(func.sum(Player.dps)).join(Log).filter(Log.guild_id == interaction.guild_id)\
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
@@ -417,7 +421,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Add top DPS
         top_dps = db.query(Player.character, Player.account, Player.dps, Player.profession, Log.link).join(Log)\
-            .filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.guild_id == interaction.guild_id) \
+            .filter(Log.emboldened == 0)\
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
             .order_by(Player.dps.desc()).all()
         top_dps_str = ""
@@ -435,6 +440,7 @@ class LogManager(commands.Cog, name="LogManager"):
         # Creating the fight duration plot
         # Query DB into a Pandas dataframe
         df = pd.read_sql(db.query(Log.date_time, Log.duration).filter(Log.guild_id == interaction.guild_id)
+                         .filter(Log.emboldened == 0)
                          .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
                          .order_by(Log.date_time).statement, db.bind)
         # Convert timedelta to int seconds
