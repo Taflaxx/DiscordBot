@@ -11,7 +11,7 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-print(discord.__version__)
+print(f"discord.py version: {discord.__version__}")
 
 # Loading config
 config = configparser.ConfigParser()
