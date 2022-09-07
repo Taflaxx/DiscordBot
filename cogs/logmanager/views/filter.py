@@ -38,8 +38,10 @@ order_dict = {"Target DPS": Player.dps.desc(),
 
 
 class LogFilterView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, emboldened: bool = False):
         super().__init__()
+        self.emboldened = emboldened
+
         self.nameModal = NameFilter()
         self.boonModal = BoonFilter()
 
@@ -85,7 +87,9 @@ class LogFilterView(discord.ui.View):
         filter_str = "__**Search Settings:**__\n"
 
         # Query DB
-        query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.emboldened == 0)
+        query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
+        if not self.emboldened:
+            query = query.filter(Log.emboldened == 0)
         if selected_bosses:
             query = query.filter(Log.fight_name.in_(selected_bosses))
             filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"

@@ -714,8 +714,9 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.command(name="logs", description="Search for logs")
-    async def search_logs(self, interaction: Interaction) -> None:
-        view = LogFilterView()
+    @app_commands.describe(emboldened="Include emboldened logs? (Default: False)")
+    async def search_logs(self, interaction: Interaction, emboldened: typing.Optional[bool] = False) -> None:
+        view = LogFilterView(emboldened)
 
         await interaction.response.send_message(view=view, ephemeral=True)
 
