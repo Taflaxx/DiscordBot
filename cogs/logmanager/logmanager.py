@@ -126,7 +126,7 @@ class LogManager(commands.Cog, name="LogManager"):
         response = "**Finding logs:** "
         await interaction.response.send_message(content=response)
         # Get full message instead of interaction message to prevent webhook timeout
-        response_message = await interaction.original_message()
+        response_message = await interaction.original_response()
         response_message = await response_message.fetch()
 
         logs = []
