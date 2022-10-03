@@ -16,6 +16,7 @@ from cogs.logmanager.dicts import bosses
 import typing
 import traceback
 import sys
+from sqlalchemy import select
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -376,10 +377,12 @@ class LogManager(commands.Cog, name="LogManager"):
         await interaction.response.defer()
 
         # Get all logs of the selected boss
-        query = db.query(Log).join(Player).filter(Log.guild_id == interaction.guild_id)
-        query = query.filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
-
-        if query.count() == 0:
+        statement = select(Log).join(Player).filter(Log.guild_id == interaction.guild_id)\
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
+            .distinct(Log.link)
+        total_logs = len((await db.execute(statement)).all())
+        print(total_logs)
+        if total_logs == 0:
             await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
 
@@ -388,64 +391,63 @@ class LogManager(commands.Cog, name="LogManager"):
         embed.set_author(name=boss, icon_url=bosses[boss]["icon"])
 
         # First kill
-        first_kill = query.order_by(Log.date_time.asc()).first()
+        first_kill = (await db.execute(statement.order_by(Log.date_time.asc()))).scalar()
         embed.add_field(name="First kill:", value=f"[{first_kill.date_time.strftime('%B %e, %Y')}]({first_kill.link})")
 
         # Latest kill
-        latest_kill = query.order_by(Log.date_time.desc()).first()
+        latest_kill = (await db.execute(statement.order_by(Log.date_time.desc()))).scalar()
         embed.add_field(name="Latest kill:", value=f"[{latest_kill.date_time.strftime('%B %e, %Y')}]({latest_kill.link})")
 
         # Total kills
-        embed.add_field(name="Number of kills:", value=query.distinct(Log.link).count())
+        embed.add_field(name="Number of kills:", value=total_logs)
 
         # Fastest kills
-        query_fastest = query.distinct(Log.link).filter(Log.emboldened == 0).order_by(Log.duration.asc())
+        query_fastest = (await db.execute(statement.filter(Log.emboldened == 0).order_by(Log.duration.asc()))).scalars().all()
         val = ""
-        for i in range(0, min(5, query_fastest.count())):
+        for i in range(0, min(5, len(query_fastest))):
             val += f"[{strfdelta(query_fastest[i].duration)} ({query_fastest[i].date_time.strftime('%B %e, %Y')})]({query_fastest[i].link})\n"
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
-        # Average DPS
-        total_logs = db.query(Log.link).filter(Log.guild_id == interaction.guild_id) \
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
-        total_players = db.query(Player.id).join(Log).filter(Log.guild_id == interaction.guild_id) \
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).count()
-        total_dps = db.query(func.sum(Player.dps)).join(Log).filter(Log.guild_id == interaction.guild_id)\
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
-        embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
+        # Average DPS and damage taken
+        statement = select(func.count(Player.id), func.sum(Player.dps), func.sum(Player.damage)).join(Log)\
+            .filter(Log.guild_id == interaction.guild_id) \
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
+        total_players, total_dps, total_damage = (await db.execute(statement)).first()
 
-        # Average Damage
-        total_damage = db.query(func.sum(Player.damage)).join(Log).filter(Log.guild_id == interaction.guild_id)\
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).all()[0][0]
+        # Add embeds
+        embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
         # Add top DPS
-        top_dps = db.query(Player.character, Player.account, Player.dps, Player.profession, Log.link).join(Log)\
-            .filter(Log.guild_id == interaction.guild_id) \
-            .filter(Log.emboldened == 0)\
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
-            .order_by(Player.dps.desc()).all()
+        top_dps = (await db.execute(
+            select(Player.character, Player.account, Player.dps, Player.profession, Log.link).join(Log)
+            .filter(Log.guild_id == interaction.guild_id)
+            .filter(Log.emboldened == 0)
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
+            .order_by(Player.dps.desc()))).all()
         top_dps_str = ""
         for i in range(0, 3):
             top_dps_str += f"[{top_dps[i][2]} DPS by {top_dps[i][0]} ({top_dps[i][1]}) - {top_dps[i][3]}]({top_dps[i][4]})\n"
         embed.add_field(name="Top DPS:", value=top_dps_str, inline=False)
 
         # Downs & Downs
-        total_downs, total_deaths = db.query(func.sum(Player.downs), func.sum(Player.deaths))\
-            .join(Log).filter(Log.guild_id == interaction.guild_id)\
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")).first()
+        total_downs, total_deaths = (await db.execute(
+            select(func.sum(Player.downs), func.sum(Player.deaths))
+            .join(Log).filter(Log.guild_id == interaction.guild_id)
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))).first()
         embed.add_field(name="Downs:", value=f"Total: {total_downs}\nAverage: {round(total_downs / total_logs, 1)}")
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nAverage: {round(total_deaths / total_logs, 1)}")
 
         # Creating the fight duration plot
         # Query DB into a Pandas dataframe
-        df = pd.read_sql(db.query(Log.date_time, Log.duration).filter(Log.guild_id == interaction.guild_id)
-                         .filter(Log.emboldened == 0)
-                         .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
-                         .order_by(Log.date_time).statement, db.bind)
+        r = await db.execute(select(Log.date_time, Log.duration).filter(Log.guild_id == interaction.guild_id)
+                             .filter(Log.emboldened == 0)
+                             .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+                             .order_by(Log.date_time))
+        df = pd.DataFrame(r.fetchall())
         # Convert timedelta to int seconds
         for i in df.index:
-            df.at[i, "duration"] = df.at[i, "duration"].seconds
+            df.at[i, 1] = df.at[i, 1].seconds
 
         # Create line plot
         df.columns = ["Date", "Fight duration in seconds"]
@@ -806,4 +808,6 @@ class LogManager(commands.Cog, name="LogManager"):
 
 
 async def setup(bot):
+    await db.init()
+    await db.create_all()
     await bot.add_cog(LogManager(bot))

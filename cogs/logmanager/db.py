@@ -2,19 +2,35 @@ from datetime import datetime, timezone, timedelta
 import re
 import aiohttp
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean, Interval
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, func
+from sqlalchemy import func
 from cogs.logmanager.utils import boss_abrv, sort_dict
 import cogs.logmanager.dicts as dicts
 
-
-# Init DB
-engine = create_engine("sqlite:///cogs/logmanager/logmanager.db", echo=False)
-Session = sessionmaker(bind=engine)
-db = Session()
 Base = declarative_base()
+
+
+class AsyncDatabaseSession:
+    def __init__(self):
+        self._session = None
+        self._engine = None
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    async def init(self):
+        self._engine = create_async_engine("sqlite+aiosqlite:///cogs/logmanager/logmanager.db", echo=True,)
+        self._session = sessionmaker(self._engine, expire_on_commit=False, class_=AsyncSession)()
+
+    async def create_all(self):
+        async with self._engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+
+db = AsyncDatabaseSession()
 
 
 class Log(Base):
@@ -107,15 +123,15 @@ class Config(Base):
     log_channel_id = Column(Integer)
 
 
-Base.metadata.create_all(engine)
-Log.__table__.create(bind=engine, checkfirst=True)
-Player.__table__.create(bind=engine, checkfirst=True)
-BuffUptimes.__table__.create(bind=engine, checkfirst=True)
-BuffGeneration.__table__.create(bind=engine, checkfirst=True)
-Mechanic.__table__.create(bind=engine, checkfirst=True)
-BuffMap.__table__.create(bind=engine, checkfirst=True)
-Config.__table__.create(bind=engine, checkfirst=True)
-db.commit()
+#Base.metadata.create_all(engine)
+#Log.__table__.create(bind=engine, checkfirst=True)
+#Player.__table__.create(bind=engine, checkfirst=True)
+#BuffUptimes.__table__.create(bind=engine, checkfirst=True)
+#BuffGeneration.__table__.create(bind=engine, checkfirst=True)
+#Mechanic.__table__.create(bind=engine, checkfirst=True)
+#BuffMap.__table__.create(bind=engine, checkfirst=True)
+#Config.__table__.create(bind=engine, checkfirst=True)
+#db.commit()
 
 
 async def add_log(log: str, guild_id: int):
