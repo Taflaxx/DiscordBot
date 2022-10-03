@@ -783,8 +783,7 @@ class LogManager(commands.Cog, name="LogManager"):
     ])
     async def reindex(self, interaction: Interaction, mode: app_commands.Choice[int]):
         # Make sure user is bot owner
-        # TODO: fix when updating to newer discord.py version
-        if not interaction.user.id == 100226718182170624:
+        if not self.bot.is_owner(interaction.user):
             await interaction.response.send_message(content=f"Only the bot owner can use this command", ephemeral=True)
             return
 
@@ -808,7 +807,7 @@ class LogManager(commands.Cog, name="LogManager"):
         response = f"**Updating {query.count()} logs:**"
         await interaction.response.send_message(content=response)
         # Get full message instead of interaction message to prevent webhook timeout
-        response_message = await interaction.original_message()
+        response_message = await interaction.original_response()
         response_message = await response_message.fetch()
 
         # Delete all logs from db and then add them again to update values
