@@ -529,8 +529,9 @@ class LogManager(commands.Cog, name="LogManager"):
         await interaction.response.defer()
 
         # Check if logs for this boss exists in db
-        boss_db = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
-            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
+        statement = select(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+        boss_db = (await db.execute(statement)).first()
         if not boss_db:
             await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
@@ -551,7 +552,7 @@ class LogManager(commands.Cog, name="LogManager"):
         # Create dataset
         for buff in buffs:
             # Check for valid Buff
-            buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(f"%{buff}%")).all()
+            buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name.ilike(f"%{buff}%")))).scalars().all()
             closest = []
             # If no Buff was found add en embed message and skip to next item
             if len(buff_map) == 0:
@@ -570,15 +571,16 @@ class LogManager(commands.Cog, name="LogManager"):
                     embed.add_field(name="**Error**", value=f"Buff \"{buff}\" was not specific enough.", inline=False)
                     continue
                 # Assign closest match
-                buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(closest[0])).all()
+                buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name.ilike(closest[0])))).first()
                 closest.remove(closest[0])
 
             # Join Tables, filter by boss and buff, group by Log.link
-            query = db.query(Log.date_time, func.avg(BuffUptimes.uptime), column(buff_map[0].name)) \
+            statement = select(Log.date_time, func.avg(BuffUptimes.uptime), column(buff_map[0].name)) \
                 .join(Player, Log.players).join(BuffUptimes, Player.buff_uptimes) \
                 .filter(Player.guild_id == interaction.guild_id) \
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
-                .filter(BuffUptimes.buff == buff_map[0].id).group_by(Log.link).all()
+                .filter(BuffUptimes.buff == buff_map[0].id).group_by(Log.link)
+            query = (await db.execute(statement)).all()
             if len(query) < 2:
                 embed.add_field(name="**Error**", value=f"Not enough data for  \"{buff_map[0].name}\".", inline=False)
             else:
@@ -604,9 +606,9 @@ class LogManager(commands.Cog, name="LogManager"):
         df = pd.DataFrame(data, columns=["Date", "Uptime", "Boon"])
         # Update embed if there was only 1 valid buff selected
         if len(df["Boon"].unique()) == 1:
-            buff_map = db.query(BuffMap).filter(BuffMap.name.ilike(df["Boon"][0])).all()
-            embed.set_thumbnail(url=buff_map[0].icon)
-            embed.title = f"{buff_map[0].name} on {boss}"
+            buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name.ilike(df["Boon"][0])))).scalar()
+            embed.set_thumbnail(url=buff_map.icon)
+            embed.title = f"{buff_map.name} on {boss}"
         # Check if dataframe actually contains any data
         if df.empty:
             await interaction.followup.send(embed=embed)
