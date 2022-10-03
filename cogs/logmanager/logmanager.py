@@ -571,7 +571,7 @@ class LogManager(commands.Cog, name="LogManager"):
                     embed.add_field(name="**Error**", value=f"Buff \"{buff}\" was not specific enough.", inline=False)
                     continue
                 # Assign closest match
-                buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name.ilike(closest[0])))).first()
+                buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name == closest[0]))).first()
                 closest.remove(closest[0])
 
             # Join Tables, filter by boss and buff, group by Log.link
@@ -606,7 +606,7 @@ class LogManager(commands.Cog, name="LogManager"):
         df = pd.DataFrame(data, columns=["Date", "Uptime", "Boon"])
         # Update embed if there was only 1 valid buff selected
         if len(df["Boon"].unique()) == 1:
-            buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name.ilike(df["Boon"][0])))).scalar()
+            buff_map = (await db.execute(select(BuffMap).filter(BuffMap.name == df["Boon"][0]))).scalar()
             embed.set_thumbnail(url=buff_map.icon)
             embed.title = f"{buff_map.name} on {boss}"
         # Check if dataframe actually contains any data
@@ -628,8 +628,9 @@ class LogManager(commands.Cog, name="LogManager"):
         await interaction.response.defer()
 
         # Check if logs for this boss exists in db
-        boss_db = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
-            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).first()
+        statement = select(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+            .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+        boss_db = (await db.execute(statement)).first()
         if not boss_db:
             await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
@@ -640,21 +641,24 @@ class LogManager(commands.Cog, name="LogManager"):
         # If no mechanic was specified
         if not mechanics:
             # List of all mechs on the boss
-            mech_query = db.query(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics)\
+            statement = select(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics)\
                 .filter(Log.guild_id == interaction.guild_id).distinct(Mechanic.description)\
-                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
+                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+            mechs = (await db.execute(statement)).all()
 
             # Number of logs of the specified boss
-            fight_number = db.query(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
-                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).count()
+            statement = select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id)\
+                .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+            fight_number = (await db.execute(statement)).scalar()
 
-            for mech in mech_query:
+            for mech in mechs:
                 # Total amount of mechanic triggers
-                total_query = db.query(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount))\
-                    .join(Player, Log.players).join(Mechanic, Player.mechanics) \
-                    .filter(Log.guild_id == interaction.guild_id)                    \
-                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
-                    .filter(Mechanic.description.ilike(f"{mech[0]}")).all()
+                statement = select(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount))\
+                     .join(Player, Log.players).join(Mechanic, Player.mechanics)\
+                     .filter(Log.guild_id == interaction.guild_id)\
+                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                     .filter(Mechanic.description.ilike(f"{mech[0]}"))
+                total_query = (await db.execute(statement)).all()
                 embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
             await interaction.followup.send(embed=embed)
 
@@ -666,11 +670,12 @@ class LogManager(commands.Cog, name="LogManager"):
             data = []
             for mechanic in mechanics:
                 # Check for valid Mechanic
-                mechanic_map = db.query(Mechanic) \
-                    .join(Player, Log.players) \
-                    .join(Mechanic, Player.mechanics) \
-                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
-                    .filter(Mechanic.description.ilike(f"%{mechanic}%")).all()
+                statement = select(Mechanic)\
+                    .join(Player, Log.players)\
+                    .join(Mechanic, Player.mechanics)\
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                    .filter(Mechanic.description.ilike(f"%{mechanic}%"))
+                mechanic_map = (await db.execute(statement)).scalars().all()
                 closest = []
                 # If no Mechanic was found add en embed message and skip to next item
                 if len(mechanic_map) == 0:
@@ -690,16 +695,17 @@ class LogManager(commands.Cog, name="LogManager"):
                                         inline=False)
                         continue
                     # Assign closest match
-                    mechanic_map = db.query(Mechanic).filter(Mechanic.description.ilike(closest[0])).all()
+                    mechanic_map = (await db.execute(select(Mechanic).filter(Mechanic.description == closest[0]))).scalars().all()
                     closest.remove(closest[0])
 
                 # Join Tables, filter by boss and mechanic, group by Log.link
-                query = db.query(Log.date_time, func.sum(Mechanic.amount), column(mechanic_map[0].description))\
+                statement = select(Log.date_time, func.sum(Mechanic.amount))\
                     .join(Player, Log.players)\
                     .join(Mechanic, Player.mechanics) \
                     .filter(Log.guild_id == interaction.guild_id)                    \
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
-                    .filter(Mechanic.description == mechanic_map[0].description).group_by(Log.link).all()
+                    .filter(Mechanic.description == mechanic_map[0].description).group_by(Log.link)
+                query = (await db.execute(statement)).all()
                 if len(query) < 2:
                     embed.add_field(name="**Error**", value=f"Not enough data for  \"{mechanic_map[0].name}\".",
                                     inline=False)
@@ -707,13 +713,14 @@ class LogManager(commands.Cog, name="LogManager"):
                     # Convert query output to array for pandas
                     log_list = []
                     for q in query:
-                        data.append([q[0], q[1], q[2]])
+                        data.append([q[0], q[1], mechanic_map[0].name])
                         log_list.append(q[0])
                     # Add buff description to embed
                     description = mechanic_map[0].name
                     # Get all logs where mechanic was not triggered and add them with the amount 0 to the data
-                    log_query = db.query(Log.date_time).filter(Log.guild_id == interaction.guild_id)\
-                        .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))).all()
+                    statement = select(Log.date_time).filter(Log.guild_id == interaction.guild_id)\
+                        .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
+                    log_query = (await db.execute(statement)).all()
                     for log in log_query:
                         if log[0] not in log_list:
                             data.append([log[0], 0, mechanic_map[0].description])
@@ -723,8 +730,8 @@ class LogManager(commands.Cog, name="LogManager"):
             df = pd.DataFrame(data, columns=["Date", "Amount", "Mechanic"])
             # Update embed if there was only 1 valid buff selected
             if len(df["Mechanic"].unique()) == 1:
-                mechanic_map = db.query(Mechanic).filter(Mechanic.description.ilike(df["Mechanic"][0])).all()
-                embed.title = f"{mechanic_map[0].description} on {boss}"
+                mechanic_map = (await db.execute(select(Mechanic).filter(Mechanic.description == (df["Mechanic"][0])))).scalar()
+                embed.title = f"{mechanic_map.description} on {boss}"
             # Check if dataframe actually contains any data
             if df.empty:
                 await interaction.followup.send(embed=embed)
