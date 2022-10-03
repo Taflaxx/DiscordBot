@@ -26,7 +26,7 @@ bot = commands.Bot(command_prefix=config["Bot"]["Prefix"], intents=intents, acti
 
 @bot.event
 async def on_ready():
-    print('Logged in as {0.user}'.format(bot))
+    print(f"Logged in as {bot.user}")
 
     # Get list of cogs and load them
     for cog in json.loads(config["Bot"]["Cogs"]):

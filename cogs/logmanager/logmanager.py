@@ -16,7 +16,7 @@ from cogs.logmanager.dicts import bosses
 import typing
 import traceback
 import sys
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -180,7 +180,7 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
     async def weekly(self, interaction: Interaction):
         # Get configured channel
-        channel = db.query(Config.log_channel_id).filter(Config.guild_id == interaction.guild_id).scalar()
+        channel = (await db.execute(select(Config.log_channel_id).filter(Config.guild_id == interaction.guild_id))).scalar()
         channel = self.bot.get_channel(channel)
         # Return if channel has not been configured
         if not channel:
@@ -201,18 +201,20 @@ class LogManager(commands.Cog, name="LogManager"):
         error_str = ""
         added_logs = []
 
-        for log in logs:
+        for idx, log in enumerate(logs):
             r = await add_log(log, interaction.guild_id)
             if r is not None:
                 errors += 1
                 error_str += f"\n{r}"
+                if "Already in Database" in r:
+                    added_logs.append(log)
             else:
                 added_logs.append(log)
-            await interaction.edit_original_message(content=f"{response}\nParsed {len(added_logs) + errors}/{len(logs)} logs.")
-        db.commit()
+            await interaction.edit_original_response(content=f"{response}\nParsed {idx + 1}/{len(logs)} logs.")
+        await db.commit()
         response += f"\nParsed {len(logs)}/{len(logs)} logs."
         response += f"\n**Added {len(logs) - errors}/{len(logs)} logs to the database.**{error_str}"
-        await interaction.edit_original_message(content=response)
+        await interaction.edit_original_response(content=response)
 
         # Skip looking for records if no logs were added
         if len(added_logs) == 0:
@@ -223,19 +225,20 @@ class LogManager(commands.Cog, name="LogManager"):
         records_dps = ""
         for log in added_logs:
             # Get log from db
-            log_db = db.query(Log).filter(Log.link.ilike(log)).first()
+            log_db = (await db.execute(select(Log).filter(Log.link == log))).scalar()
 
             # Ignore emboldened records
             if log_db.emboldened > 0:
                 continue
 
-            # Get logs from boss
+            # Get top logs from boss
             boss = log_db.fight_name
-            query = db.query(Log).filter(Log.guild_id == interaction.guild_id)
-            query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
+            statement = select(Log).filter(Log.guild_id == interaction.guild_id)\
+                .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))\
+                .order_by(Log.duration.asc()).limit(3)
+            query_fastest = (await db.execute(statement)).scalars().all()
 
             # Check if boss kill is a new record
-            query_fastest = query.distinct(Log.link).order_by(Log.duration.asc()).limit(3).all()
             if len(query_fastest) > 1:
                 for i in range(0, len(query_fastest)):
                     if query_fastest[i].link == log:
@@ -249,11 +252,12 @@ class LogManager(commands.Cog, name="LogManager"):
                         break
 
             # Check for new DPS records
-            log_db = db.query(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()).all()
+            log_db = (await db.execute(select(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()))).scalars().all()
             # Get highest DPS players
-            query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
-            query = query.filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))
-            query_dps = query.order_by(Player.dps.desc()).limit(3).all()
+            statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id)\
+                .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))\
+                .order_by(Player.dps.desc()).limit(3)
+            query_dps = (await db.execute(statement)).scalars().all()
             if len(query_fastest) > 1:
                 for player in log_db:
                     for i in range(0, len(query_dps)):
@@ -266,7 +270,8 @@ class LogManager(commands.Cog, name="LogManager"):
         fgs_stolen = {}
         for log in added_logs:
             # Get log from db
-            fgs_logs = db.query(BuffUptimes).join(Player).join(Log).filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792)).all()
+            statement = select(BuffUptimes).join(Player).join(Log).filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792))
+            fgs_logs = (await db.execute(statement)).scalars().all()
             for player in fgs_logs:
                 # If player has buff and it not an elementalist: fgs was stolen
                 if player.player.profession not in ["Elementalist", "Tempest", "Weaver", "Catalyst"]:
@@ -283,7 +288,8 @@ class LogManager(commands.Cog, name="LogManager"):
         embed = Embed(title="Weekly Clear Stats", color=0x0099ff)
 
         # Calculate clear time
-        log_times = db.query(Log.date_time, Log.duration).filter(Log.link.in_(added_logs)).order_by(Log.date_time.asc()).all()
+        statement = select(Log.date_time, Log.duration).filter(Log.link.in_(added_logs)).order_by(Log.date_time.asc())
+        log_times = (await db.execute(statement)).all()
         first_kill = log_times[0]
         last_kill = log_times[-1]
 
@@ -309,13 +315,13 @@ class LogManager(commands.Cog, name="LogManager"):
         if fgs_stolen != "":
             embed = split_embed(embed, "<:fgs:968188503424897104> **Fiery Greatswords stolen:**", fgs_text)
 
-        await interaction.edit_original_message(embed=embed)
+        await interaction.edit_original_response(embed=embed)
 
     config_group = app_commands.Group(name="config", description="Configure the bot")
 
     @app_commands.guild_only
     @app_commands.checks.has_permissions(administrator=True)
-    @config_group.command(name="weekly", description="Set the channel the clear logs are posted in")
+    @config_group.command(name="weekly", description="Set the channel where the clear logs are posted in")
     async def config_weekly(self, interaction: Interaction, channel: TextChannel) -> None:
         # Check if bot can view the given channel
         if not channel.permissions_for(channel.guild.me).read_messages:
@@ -323,13 +329,13 @@ class LogManager(commands.Cog, name="LogManager"):
             return
 
         # Add to DB
-        config = db.query(Config).filter(Config.guild_id == interaction.guild_id).first()
+        config = (await db.execute(select(Config).filter(Config.guild_id == interaction.guild_id))).first()
         if config:
-            config.log_channel_id = channel.id
+            await db.execute(update(Config).filter(Config.guild_id == interaction.guild_id).values(log_channel_id=channel.id))
         else:
             config = Config(guild_id=interaction.guild_id, log_channel_id=channel.id)
             db.add(config)
-        db.commit()
+        await db.commit()
         await interaction.response.send_message(content=f"Set channel to {channel.mention}")
 
     @config_weekly.error
@@ -348,6 +354,7 @@ class LogManager(commands.Cog, name="LogManager"):
         await interaction.response.defer()
 
         # Create embed
+        # TODO: add image, emojis...
         embed = Embed(title="Log Stats", color=0x0099ff)
 
         # Get distinct accounts, characters

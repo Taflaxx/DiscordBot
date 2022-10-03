@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean, Interval
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import func
+from sqlalchemy import func, select
 from cogs.logmanager.utils import boss_abrv, sort_dict
 import cogs.logmanager.dicts as dicts
 
@@ -136,7 +136,7 @@ class Config(Base):
 
 async def add_log(log: str, guild_id: int):
     # Check if log already exists in the database
-    if db.query(Log).filter_by(link=log).first():
+    if (await db.execute(select(Log).filter_by(link=log))).first():
         return f"{log} | Already in Database"
 
     # Get json data
@@ -247,7 +247,7 @@ async def add_log(log: str, guild_id: int):
     # BuffMap
     for buff_map in data["buffMap"]:
         # Check if this buff already exists in DB
-        if not db.query(BuffMap.id).filter(BuffMap.id == buff_map[1:]).count() > 0:
+        if not (await db.execute(select(BuffMap.id).filter(BuffMap.id == buff_map[1:]))).first():
             buff_map_db = BuffMap(id=buff_map[1:])
             buff_map_db.name = data["buffMap"][buff_map]["name"]
             buff_map_db.icon = data["buffMap"][buff_map]["icon"]
