@@ -344,31 +344,45 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.guild_only
     @app_commands.command(name="stats", description="Show some general stats about the logs")
     async def stats_general(self, interaction: Interaction) -> None:
-        # maybe merge "stats general" with "stats boss", add filter
+        # Defer to prevent interaction timeout
+        await interaction.response.defer()
+
+        # Create embed
         embed = Embed(title="Log Stats", color=0x0099ff)
-        total_logs = db.query(Log.link).filter(Log.guild_id == interaction.guild_id).count()
+
+        # Get distinct accounts, characters
+        total_logs = (await db.execute(select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id))).scalar()
         embed.add_field(name="Logs:", value=total_logs)
-        embed.add_field(name="Distinct Accounts:", value=db.query(Player.account).distinct().filter(Player.guild_id == interaction.guild_id).count())
-        embed.add_field(name="Distinct Characters:", value=db.query(Player.character).distinct().filter(Player.guild_id == interaction.guild_id).count())
+        accounts, characters = (await db.execute(select(func.count(func.distinct(Player.account)),
+                                                        func.count(func.distinct(Player.character)))
+                                                 .filter(Player.guild_id == interaction.guild_id))).first()
+        embed.add_field(name="Distinct Accounts:", value=accounts)
+        embed.add_field(name="Distinct Characters:", value=characters)
 
-        embed.add_field(name="Frequent accounts:", value=most_frequent_embed(db.query(Player.account).filter(Player.guild_id == interaction.guild_id).all()))
-        embed.add_field(name="Frequent characters:", value=most_frequent_embed(db.query(Player.character).filter(Player.guild_id == interaction.guild_id).all()))
-        embed.add_field(name="Frequent professions:", value=most_frequent_embed(db.query(Player.profession).filter(Player.guild_id == interaction.guild_id).all()))
+        # Get most frequent accounts, characters, professions
+        accounts = await db.execute(select(Player.account).filter(Player.guild_id == interaction.guild_id))
+        characters = await db.execute(select(Player.character).filter(Player.guild_id == interaction.guild_id))
+        professions = await db.execute(select(Player.profession).filter(Player.guild_id == interaction.guild_id))
+        embed.add_field(name="Frequent accounts:", value=most_frequent_embed(accounts.all()))
+        embed.add_field(name="Frequent characters:", value=most_frequent_embed(characters.all()))
+        embed.add_field(name="Frequent professions:", value=most_frequent_embed(professions.all()))
 
-        total_players = db.query(Player.id).filter(Player.guild_id == interaction.guild_id).count()
-        total_dps = db.query(func.sum(Player.dps)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
+        # Get Average DPS, Average damage, Downs, Deaths
+        statement = select(func.count(Player.id),
+                           func.sum(Player.dps),
+                           func.sum(Player.damage),
+                           func.sum(Player.downs),
+                           func.sum(Player.deaths)).filter(Player.guild_id == interaction.guild_id)
+        total_players, total_dps, total_damage, total_downs, total_deaths = (await db.execute(statement)).first()
+
+        # Add embeds
         embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
-
-        total_damage = db.query(func.sum(Player.damage)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
         embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
-
-        total_downs = db.query(func.sum(Player.downs)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
-        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nAverage: {round(total_downs / total_logs, 1)}", inline=False)
-
-        total_deaths = db.query(func.sum(Player.deaths)).filter(Player.guild_id == interaction.guild_id).all()[0][0]
+        embed.add_field(name="\u200b", value="\u200b")   # Add invisible field for better formatting
+        embed.add_field(name="Downs:", value=f"Total: {total_downs}\nAverage: {round(total_downs / total_logs, 1)}")
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nAverage: {round(total_deaths / total_logs, 1)}")
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     @app_commands.guild_only
     @app_commands.command(name="boss", description="Show boss specific stats")
