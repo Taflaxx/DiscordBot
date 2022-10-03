@@ -706,7 +706,7 @@ class LogManager(commands.Cog, name="LogManager"):
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
                     .filter(Mechanic.description == mechanic_map[0].description).group_by(Log.link)
                 query = (await db.execute(statement)).all()
-                if len(query) < 2:
+                if len(query) < 1:
                     embed.add_field(name="**Error**", value=f"Not enough data for  \"{mechanic_map[0].name}\".",
                                     inline=False)
                 else:
@@ -764,15 +764,15 @@ class LogManager(commands.Cog, name="LogManager"):
         response = ""
         for log in logs:
             # Find log in DB
-            query = db.query(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.link == log)
+            log_db = (await db.execute(select(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.link == log))).scalar()
             # Check if log exists in db
-            if query.count() == 0:
-                response += f"{log} | Not found\n"
-            else:
-                db.delete(query.scalar())
+            if log_db:
+                await db.delete(log_db)
                 response += f"{log} | Deleted\n"
+            else:
+                response += f"{log} | Not found\n"
 
-        db.commit()
+        await db.commit()
         await interaction.followup.send(content=response, ephemeral=True)
 
     @app_commands.command(name="reindex", description="Reindex the Database")
