@@ -21,14 +21,14 @@ import sys
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.FileHandler(filename="cogs/logmanager/logmanager.log", encoding="utf-8", mode="w")
 handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
 logger.addHandler(handler)
 
 
 class LogManager(commands.Cog, name="LogManager"):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     def cog_unload(self):
@@ -132,6 +132,9 @@ class LogManager(commands.Cog, name="LogManager"):
 
         logs = []
         async for message in messages:
+            # Skip messages from this bot
+            if message.author == self.bot.user:
+                continue
             # Find all links to logs in the message
             logs.extend(get_logs_from_message(message))
 
@@ -192,6 +195,11 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Load latest message
         message = await anext(channel.history(limit=1))
+
+        # Skip if the message is from this bot
+        if message.author == self.bot.user:
+            await interaction.response.send_message(content="Can't add logs from my own messages.", ephemeral=True)
+            return
 
         # Find all links to logs in the message
         logs = get_logs_from_message(message)
