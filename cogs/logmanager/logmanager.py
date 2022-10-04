@@ -769,10 +769,13 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.command(name="delete", description="Delete logs [Admin only]")
     @app_commands.describe(logs="Logs you want to delete")
     async def delete_logs(self, interaction: Interaction, logs: str) -> None:
-        await interaction.response.defer(ephemeral=True)
-        # Find all logs in message
+        # Find all logs in string
         logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", logs)
+        if not logs:
+            await interaction.response.send_message(content="Your input contains no logs", ephemeral=True)
+            return
 
+        await interaction.response.defer(ephemeral=True)
         response = ""
         for log in logs:
             # Find log in DB
