@@ -837,6 +837,4 @@ class LogManager(commands.Cog, name="LogManager"):
 
 
 async def setup(bot):
-    await db.init()
-    await db.create_all()
     await bot.add_cog(LogManager(bot))

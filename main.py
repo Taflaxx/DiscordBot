@@ -3,6 +3,7 @@ import logging
 import configparser
 from discord.ext import commands
 import json
+from cogs.logmanager.db import db
 
 # Set up logging
 logger = logging.getLogger('discord')
@@ -35,6 +36,10 @@ async def on_ready():
             print(f"Successfully loaded {cog}")
         except Exception as e:
             print(f"Failed to load {cog}: {e}")
+
+    # Init DB
+    await db.init()
+    await db.create_all()
 
 if __name__ == '__main__':
     bot.run(token=config["Discord"]["Token"])
