@@ -3,10 +3,8 @@ import re
 import aiohttp
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean, Interval
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import func, select
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean, Interval, func, select
 from cogs.logmanager.utils import boss_abrv, sort_dict
 import cogs.logmanager.dicts as dicts
 

@@ -4,6 +4,7 @@ from discord import Embed
 from cogs.logmanager.db import *
 from cogs.logmanager.dicts import professions, bosses, boons
 import itertools
+from sqlalchemy.orm import selectinload
 
 
 class SimpleDropdown(discord.ui.Select):
@@ -87,34 +88,35 @@ class LogFilterView(discord.ui.View):
         filter_str = "__**Search Settings:**__\n"
 
         # Query DB
-        query = db.query(Player).join(Log).filter(Log.guild_id == interaction.guild_id)
+        statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id).options(selectinload(Player.log))
         if not self.emboldened:
-            query = query.filter(Log.emboldened == 0)
+            statement = statement.filter(Log.emboldened == 0)
         if selected_bosses:
-            query = query.filter(Log.fight_name.in_(selected_bosses))
+            statement = statement.filter(Log.fight_name.in_(selected_bosses))
             filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"
         if selected_professions:
-            query = query.filter(Player.profession.in_(selected_professions))
+            statement = statement.filter(Player.profession.in_(selected_professions))
             filter_str += f"**Professions:** {', '.join(selected_professions)}\n"
         if self.nameModal.account.value:
-            query = query.filter(Player.account.ilike(f"%{self.nameModal.account.value}%"))
+            statement = statement.filter(Player.account.ilike(f"%{self.nameModal.account.value}%"))
             filter_str += f"**Account:** {self.nameModal.account.value}\n"
         if self.nameModal.character.value:
-            query = query.filter(Player.character.ilike(f"%{self.nameModal.character.value}%"))
+            statement = statement.filter(Player.character.ilike(f"%{self.nameModal.character.value}%"))
             filter_str += f"**Character:** {self.nameModal.character.value}\n"
         if self.boonModal.boon.values:
             val = 60
             if self.boonModal.value.value.isdigit():
                 if 0 <= int(self.boonModal.value.value) <= 100:
                     val = int(self.boonModal.value.value)
-            buff_id = db.query(BuffMap).filter(BuffMap.name.ilike(f"{self.boonModal.boon.values[0]}")).first().id
-            query = query.join(BuffGeneration).filter((BuffGeneration.buff == buff_id) & (BuffGeneration.uptime >= val))
+            buff_id = (await db.execute((BuffMap).filter(BuffMap.name.ilike(f"{self.boonModal.boon.values[0]}")))).first().id
+            statement = statement.join(BuffGeneration).filter((BuffGeneration.buff == buff_id) & (BuffGeneration.uptime >= val))
             filter_str += f"**Minimum Boon Generation:** {val}% {self.boonModal.boon.values[0]}\n"
 
-        query = query.order_by(order_dict[selected_order])
+        statement = statement.order_by(order_dict[selected_order])
         filter_str += f"**Ordered by:** {selected_order}\n"
 
-        if query.count() == 0:
+        query = (await db.execute(statement)).scalars().all()
+        if len(query) == 0:
             # Send ephemeral message if no logs were found
             await interaction.response.send_message(content="**:x: No logs found**\n" + filter_str, ephemeral=True)
             return
@@ -159,7 +161,7 @@ class BoonFilter(discord.ui.Modal, title="Boon Settings (Generation Self)"):
 def create_log_embed(query, order, start: int = 0, end: int = 10):
     embed = Embed(title="Top Logs", color=0x0099ff)
     val = ""
-    for i in range(start, min(end, query.count())):
+    for i in range(start, min(end, len(query))):
         row = query[i]
         val += f"[{i + 1}. {row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
@@ -168,7 +170,7 @@ def create_log_embed(query, order, start: int = 0, end: int = 10):
             embed.add_field(name=f"Sorted by {order} [{i - 3} - {i + 1}]:", value=val)
             val = ""
         # Make sure embed is added when < 5 logs are left
-        elif i + 1 == query.count():
+        elif i + 1 == len(query):
             embed.add_field(name=f"Sorted by {order}:", value=val)
         # For better formatting (max 2 fields next to each other) add an invisible field
         if (i + 1) % 10 == 0:
@@ -186,7 +188,7 @@ class LogPaginationView(discord.ui.View):
         self.order = order
         self.logs_per_page = logs_per_page
         self.current_page = 0
-        self.last_page = math.ceil(query.count() / logs_per_page) - 1
+        self.last_page = math.ceil(len(query) / logs_per_page) - 1
         self.children[2].label = f"{1}/{self.last_page + 1}"
 
     def switch_to_page(self, page: int):

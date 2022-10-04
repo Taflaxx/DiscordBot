@@ -5,7 +5,7 @@ import os
 import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
-from sqlalchemy import func, column
+from sqlalchemy import func, column, select, update
 import pandas as pd
 import difflib
 from datetime import datetime, timezone
@@ -16,7 +16,7 @@ from cogs.logmanager.dicts import bosses
 import typing
 import traceback
 import sys
-from sqlalchemy import select, update
+
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
