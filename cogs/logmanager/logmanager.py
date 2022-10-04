@@ -6,6 +6,7 @@ import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
 from sqlalchemy import func, column, select, update
+from sqlalchemy.orm import selectinload
 import pandas as pd
 import difflib
 from datetime import datetime, timezone
@@ -132,7 +133,7 @@ class LogManager(commands.Cog, name="LogManager"):
         logs = []
         async for message in messages:
             # Find all links to logs in the message
-            logs.extend(re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content))
+            logs.extend(get_logs_from_message(message))
 
         # Send confirmation message
         response += f"{len(logs)} logs found."
@@ -155,7 +156,7 @@ class LogManager(commands.Cog, name="LogManager"):
             # Periodically update user on progress
             if (idx+1) % 10 == 0:
                 await response_message.edit(content=f"{response}\nParsed {idx+1}/{len(logs)} logs.")
-                db.commit()
+                await db.commit()
 
         await response_message.edit(content=f"{response}\nParsed {len(logs)}/{len(logs)} logs.\n"
                                             f"**Added {len(logs) - errors}/{len(logs)} logs to the database.**")
@@ -193,7 +194,7 @@ class LogManager(commands.Cog, name="LogManager"):
         message = await anext(channel.history(limit=1))
 
         # Find all links to logs in the message
-        logs = re.findall("https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+", message.content)
+        logs = get_logs_from_message(message)
         response = f"**Found {len(logs)} logs:**"
         await interaction.response.send_message(content=response)
 
@@ -270,7 +271,9 @@ class LogManager(commands.Cog, name="LogManager"):
         fgs_stolen = {}
         for log in added_logs:
             # Get log from db
-            statement = select(BuffUptimes).join(Player).join(Log).filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792))
+            statement = select(BuffUptimes).join(Player).join(Log)\
+                .filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792))\
+                .options(selectinload(BuffUptimes.player).selectinload(Player.log))
             fgs_logs = (await db.execute(statement)).scalars().all()
             for player in fgs_logs:
                 # If player has buff and it not an elementalist: fgs was stolen

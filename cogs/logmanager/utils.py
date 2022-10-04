@@ -1,4 +1,7 @@
+import typing
 from collections import Counter
+import re
+import discord
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import seaborn as sns
@@ -68,3 +71,26 @@ def strfdelta(tdelta):
     m, s = divmod(tdelta.seconds, 60)
     ms = f"{tdelta.microseconds:06d}"[:3]
     return f"{m:02d}m {s:02d}s {ms} ms"
+
+
+def get_logs_from_message(message: discord.Message) -> typing.List[str]:
+    log_regex = "https:\/\/dps\.report\/[a-zA-Z\-0-9\_]+"
+    logs = []
+    # Find all links to logs in the message
+    logs.extend(re.findall(log_regex, message.content))
+
+    # Check embeds
+    for embed in message.embeds:
+        if embed.title:
+            logs.extend(re.findall(log_regex, embed.title))
+        if embed.description:
+            logs.extend(re.findall(log_regex, embed.description))
+        if embed.url:
+            logs.extend(re.findall(log_regex, embed.url))
+
+        for field in embed.fields:
+            if field.name:
+                logs.extend(re.findall(log_regex, field.name))
+            if field.value:
+                logs.extend(re.findall(log_regex, field.value))
+    return logs
