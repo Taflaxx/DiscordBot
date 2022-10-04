@@ -307,11 +307,13 @@ class LogManager(commands.Cog, name="LogManager"):
         end_time = last_kill.date_time + last_kill.duration
         # Format clear_time since you cant use str format on a timedelta object
         clear_time = end_time - first_kill.date_time
-        clear_time_hours, remainder = divmod(clear_time.total_seconds(), 3600)
-        clear_time_minutes, clear_time_seconds = divmod(remainder, 60)
+        # Only add it to embed if clear time is realistic
+        if clear_time < timedelta(hours=12):
+            clear_time_hours, remainder = divmod(clear_time.total_seconds(), 3600)
+            clear_time_minutes, clear_time_seconds = divmod(remainder, 60)
 
-        embed.add_field(name=f"Clear Time:",
-                        value=f"{int(clear_time_hours)}h {int(clear_time_minutes)}m {int(clear_time_seconds)}s")
+            embed.add_field(name=f"Clear Time:",
+                            value=f"{int(clear_time_hours)}h {int(clear_time_minutes)}m {int(clear_time_seconds)}s")
 
         # Add kill time records
         if records == "":
