@@ -363,16 +363,22 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.guild_only
     @app_commands.command(name="stats", description="Show some general stats about the logs")
     async def stats_general(self, interaction: Interaction) -> None:
+        # Create embed
+        embed = Embed(title="Log Stats", color=0x0099ff)
+
+        # Get total amount of logs in db for this guild
+        total_logs = (await db.execute(select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id))).scalar()
+        embed.add_field(name="Logs:", value=total_logs)
+
+        # If no logs exist in db return
+        if total_logs == 0:
+            await interaction.response.send_message("**:x: No logs found**", ephemeral=True)
+            return
+
         # Defer to prevent interaction timeout
         await interaction.response.defer()
 
-        # Create embed
-        # TODO: add image, emojis...
-        embed = Embed(title="Log Stats", color=0x0099ff)
-
         # Get distinct accounts, characters
-        total_logs = (await db.execute(select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id))).scalar()
-        embed.add_field(name="Logs:", value=total_logs)
         accounts, characters = (await db.execute(select(func.count(func.distinct(Player.account)),
                                                         func.count(func.distinct(Player.character)))
                                                  .filter(Player.guild_id == interaction.guild_id))).first()
