@@ -10,3 +10,8 @@ bosses = typing.Literal[
          "Conjured Amalgamate", "Twin Largos", "Qadim",
          "Cardinal Sabir", "Cardinal Adina", "Qadim the Peerless"
 ]
+
+# Discord bot activity
+activity = typing.Literal[
+    "Playing", "Listening", "Watching"
+]
