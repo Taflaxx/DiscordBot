@@ -53,7 +53,7 @@ class LogManager(commands.Cog, name="LogManager"):
             if r is not None:
                 errors += 1
                 await message.edit(content=f"{message.content}\n{r}")  # update original message with errors
-        db.commit()
+        await db.commit()
         await message.edit(content=f"{message.content}\nAdded {len(logs) - errors}/{len(logs)} logs to the database.")
 
     @commands.guild_only()
