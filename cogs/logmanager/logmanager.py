@@ -415,7 +415,6 @@ class LogManager(commands.Cog, name="LogManager"):
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
             .distinct(Log.link)
         total_logs = len((await db.execute(statement)).all())
-        print(total_logs)
         if total_logs == 0:
             await interaction.followup.send("**:x: No logs found**", ephemeral=True)
             return
