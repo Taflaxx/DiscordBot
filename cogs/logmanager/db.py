@@ -4,7 +4,7 @@ import aiohttp
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Time, Float, Boolean, Interval, func, select
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Boolean, Interval, func, select
 from cogs.logmanager.utils import boss_abrv, sort_dict
 import cogs.logmanager.dicts as dicts
 
@@ -20,7 +20,7 @@ class AsyncDatabaseSession:
         return getattr(self._session, name)
 
     async def init(self):
-        self._engine = create_async_engine("sqlite+aiosqlite:///cogs/logmanager/logmanager.db", echo=True,)
+        self._engine = create_async_engine("sqlite+aiosqlite:///cogs/logmanager/logmanager.db", echo=False,)
         self._session = sessionmaker(self._engine, expire_on_commit=False, class_=AsyncSession)()
 
     async def create_all(self):
@@ -119,17 +119,6 @@ class Config(Base):
 
     guild_id = Column(Integer, primary_key=True)
     log_channel_id = Column(Integer)
-
-
-#Base.metadata.create_all(engine)
-#Log.__table__.create(bind=engine, checkfirst=True)
-#Player.__table__.create(bind=engine, checkfirst=True)
-#BuffUptimes.__table__.create(bind=engine, checkfirst=True)
-#BuffGeneration.__table__.create(bind=engine, checkfirst=True)
-#Mechanic.__table__.create(bind=engine, checkfirst=True)
-#BuffMap.__table__.create(bind=engine, checkfirst=True)
-#Config.__table__.create(bind=engine, checkfirst=True)
-#db.commit()
 
 
 async def add_log(log: str, guild_id: int):
