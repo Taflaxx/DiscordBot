@@ -154,6 +154,20 @@ bosses = {
         "Qadim the Peerless": {
             "emoji": "7️⃣",
             "icon": "https://wiki.guildwars2.com/images/8/8b/Mini_Qadim_the_Peerless.png"},
+
+        # EoD Strikes
+        "Captain Mai Trin": {
+            "emoji": "<:strike:1027198472459391047>",
+            "icon": "https://wiki.guildwars2.com/images/thumb/9/98/Mini_Mai_Trin.png/20px-Mini_Mai_Trin.png"},
+        "Ankka": {
+            "emoji": "<:strike:1027198472459391047>",
+            "icon": "https://wiki.guildwars2.com/images/thumb/8/89/Mini_Risen_Thrall.png/20px-Mini_Risen_Thrall.png"},
+        "Minister Li": {
+            "emoji": "<:strike:1027198472459391047>",
+            "icon": "https://i.imgur.com/7OutZup.png"},
+        "The Dragonvoid": {
+            "emoji": "<:strike:1027198472459391047>",
+            "icon": "https://wiki.guildwars2.com/images/thumb/0/07/Mini_Void_Vinetooth.png/20px-Mini_Void_Vinetooth.png"},
         }
 
 boons = {
@@ -166,6 +180,32 @@ boons = {
     }
 
 translate_to_english = {
+        "English": {
+            "Vale Guardian": "Vale Guardian",
+            "Gorseval the Multifarious": "Gorseval the Multifarious",
+            "Sabetha the Saboteur": "Sabetha the Saboteur",
+            "Slothasor": "Slothasor",
+            "Matthias Gabrel": "Matthias Gabrel",
+            "Keep Construct": "Keep Construct",
+            "Xera": "Xera",
+            "Cairn": "Cairn",
+            "Mursaat Overseer": "Mursaat Overseer",
+            "Samarog": "Samarog",
+            "Deimos": "Deimos",
+            "Soulless Horror": "Soulless Horror",
+            "Dhuum": "Dhuum",
+            "Conjured Amalgamate": "Conjured Amalgamate",
+            "Twin Largos": "Twin Largos",
+            "Qadim": "Qadim",
+            "Cardinal Sabir": "Cardinal Sabir",
+            "Cardinal Adina": "Cardinal Adina",
+            "Qadim the Peerless": "Qadim the Peerless",
+            # Strikes
+            "Aetherblade Hideout": "Captain Mai Trin",
+            "Ankka": "Ankka",
+            "Minister Li": "Minister Li",
+            "The Dragonvoid": "The Dragonvoid"
+        },
         "German": {
             "Tal-Wächter": "Vale Guardian",
             "Gorseval der Facettenreiche": "Gorseval the Multifarious",
@@ -185,7 +225,13 @@ translate_to_english = {
             "Qadim": "Qadim",
             "Kardinal Sabir": "Cardinal Sabir",
             "Kardinal Adina": "Cardinal Adina",
-            "Qadim der Unvergleichliche": "Qadim the Peerless"
+            "Qadim der Unvergleichliche": "Qadim the Peerless",
+            # Strikes
+            "Aetherblade Hideout": "Captain Mai Trin",
+            "Ankka": "Ankka",
+            "Minister Li": "Minister Li",
+            "The Dragonvoid": "The Dragonvoid"
+
         },
         "French": {
             "Gardien de la Vallée": "Vale Guardian",
@@ -206,7 +252,12 @@ translate_to_english = {
             "Qadim": "Qadim",
             "Cardinal Sabir": "Cardinal Sabir",
             "Cardinale Adina": "Cardinal Adina",
-            "Qadim l'Inégalé": "Qadim the Peerless"
+            "Qadim l'Inégalé": "Qadim the Peerless",
+            # Strikes
+            "Aetherblade Hideout": "Captain Mai Trin",
+            "Ankka": "Ankka",
+            "Ministre Li": "Minister Li",
+            "The Dragonvoid": "The Dragonvoid"
         },
         "Spanish": {
             "Guardián del valle": "Vale Guardian",
@@ -227,6 +278,11 @@ translate_to_english = {
             "Qadim": "Qadim",
             "Cardenal Sabir": "Cardinal Sabir",
             "Cardenal Adina": "Cardinal Adina",
-            "Qadim el Simpar": "Qadim the Peerless"
+            "Qadim el Simpar": "Qadim the Peerless",
+            # Strikes
+            "Aetherblade Hideout": "Captain Mai Trin",
+            "Ankka": "Ankka",
+            "Ministro Li": "Minister Li",
+            "The Dragonvoid": "The Dragonvoid"
         }
 }

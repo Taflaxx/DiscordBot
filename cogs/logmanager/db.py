@@ -145,23 +145,17 @@ async def add_log(log: str, guild_id: int):
     # Create log
     log_db = Log(link=log, guild_id=guild_id)
 
-    # Check if boss is supported
-    if data["language"] == "English":
-        log_db.fight_name = data["fightName"]
-        if not data["fightName"].replace(" CM", "") in dicts.bosses.keys():
-            return f"{log} | Boss not supported"
+    # Check if language is supported
+    if not data["language"] in dicts.translate_to_english.keys():
+        return f"{log} | Language error"
+    # # Check if boss is supported
+    if data["fightName"].replace(" CM", "") in dicts.translate_to_english[data["language"]].keys():
+        log_db.fight_name = dicts.translate_to_english[data["language"]][data["fightName"].replace(" CM", "")]
+        # Add "CM" back to fight name
+        if data["fightName"].endswith(" CM"):
+            log_db.fight_name += " CM"
     else:
-        # Check if language is supported
-        if not data["language"] in dicts.translate_to_english.keys():
-            return f"{log} | Language error"
-        # Get english fight_name
-        if data["fightName"].replace(" CM", "") in dicts.translate_to_english[data["language"]].keys():
-            log_db.fight_name = dicts.translate_to_english[data["language"]][data["fightName"].replace(" CM", "")]
-            # Add "CM" back to fight name
-            if data["fightName"].endswith(" CM"):
-                log_db.fight_name += " CM"
-        else:
-            return f"{log} | Boss not supported"
+        return f"{log} | Boss not supported"
 
     # Convert time to utc
     log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
@@ -193,10 +187,18 @@ async def add_log(log: str, guild_id: int):
             # Special case for Dhuum to ignore the long pre-event
             # Only include "Dhuum Fight"
             player_db.dps = player["dpsTargets"][0][3]["dps"]
+        elif log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
+            targets = ["Nikare", "Kenut"]
+            player_db.dps = get_dps_from_targets(data, player, targets)
+        elif log_db.fight_name.startswith("Captain Mai Trin"):  # Because Mai Trin is 2 bosses
+            targets = ["Captain Mai Trin", "Echo of Scarlet Briar"]
+            player_db.dps = get_dps_from_targets(data, player, targets)
+        elif log_db.fight_name.startswith("The Dragonvoid"):  # Because HT has many bosses
+            targets = ["The JormagVoid", "The PrimordusVoid", "The KralkatorrikVoid",
+                       "The MordremothVoid", "The ZhaitanVoid", "The SooWonVoid"]
+            player_db.dps = get_dps_from_targets(data, player, targets)
         else:
             player_db.dps = player["dpsTargets"][0][0]["dps"]
-            if log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
-                player_db.dps = player_db.dps + player["dpsTargets"][1][0]["dps"]
 
         # Add breakbar
         if "breakbarDamage" in player["dpsAll"][0]:
@@ -338,3 +340,16 @@ async def get_player_stats(player_stat, min_appearances=50):
     stats = sort_dict(stats)[::-1]
     averages = sort_dict(averages)[::-1]
     return stats, averages
+
+
+def get_dps_from_targets(log, player, targets):
+    # Get IDs of the targets
+    ids = []
+    for idx, target in enumerate(log["targets"]):
+        if target["name"] in targets:
+            ids.append(idx)
+    # Get the dps dealt to the targets
+    dps = 0
+    for id in ids:
+        dps += player["dpsTargets"][id][0]["dps"]
+    return dps

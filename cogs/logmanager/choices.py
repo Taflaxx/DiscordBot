@@ -8,7 +8,9 @@ bosses = typing.Literal[
          "Cairn the Indomitable", "Mursaat Overseer", "Samarog", "Deimos",
          "Soulless Horror", "Dhuum",
          "Conjured Amalgamate", "Twin Largos", "Qadim",
-         "Cardinal Sabir", "Cardinal Adina", "Qadim the Peerless"
+         "Cardinal Sabir", "Cardinal Adina", "Qadim the Peerless",
+         # Strikes
+         "Captain Mai Trin", "Ankka", "Minister Li", "The Dragonvoid"
 ]
 
 # Discord bot activity
