@@ -142,12 +142,26 @@ async def add_log(log: str, guild_id: int):
     if not data["success"]:
         return f"{log} | Boss was not killed"
 
-    # Check if boss is supported
-    if not data["fightName"].replace(" CM", "") in dicts.bosses.keys():
-        return f"{log} | Boss not supported"
+    # Create log
+    log_db = Log(link=log, guild_id=guild_id)
 
-    # Create log in DB
-    log_db = Log(link=log, fight_name=data["fightName"], guild_id=guild_id)
+    # Check if boss is supported
+    if data["language"] == "English":
+        log_db.fight_name = data["fightName"]
+        if not data["fightName"].replace(" CM", "") in dicts.bosses.keys():
+            return f"{log} | Boss not supported"
+    else:
+        # Check if language is supported
+        if not data["language"] in dicts.translate_to_english.keys():
+            return f"{log} | Language error"
+        # Get english fight_name
+        if data["fightName"].replace(" CM", "") in dicts.translate_to_english[data["language"]].keys():
+            log_db.fight_name = dicts.translate_to_english[data["language"]][data["fightName"].replace(" CM", "")]
+            # Add "CM" back to fight name
+            if data["fightName"].endswith(" CM"):
+                log_db.fight_name += " CM"
+        else:
+            return f"{log} | Boss not supported"
 
     # Convert time to utc
     log_db.date_time = datetime.strptime(data["timeStartStd"], "%Y-%m-%d %H:%M:%S %z").astimezone(timezone.utc)
