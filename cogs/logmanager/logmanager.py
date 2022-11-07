@@ -244,6 +244,7 @@ class LogManager(commands.Cog, name="LogManager"):
             boss = log_db.fight_name
             statement = select(Log).filter(Log.guild_id == interaction.guild_id)\
                 .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))\
+                .filter(Log.emboldened == 0)\
                 .order_by(Log.duration.asc()).limit(3)
             query_fastest = (await db.execute(statement)).scalars().all()
 
@@ -265,6 +266,7 @@ class LogManager(commands.Cog, name="LogManager"):
             # Get highest DPS players
             statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id)\
                 .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))\
+                .filter(Log.emboldened == 0)\
                 .order_by(Player.dps.desc()).limit(3)
             query_dps = (await db.execute(statement)).scalars().all()
             if len(query_fastest) > 1:
