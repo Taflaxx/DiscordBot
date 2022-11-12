@@ -36,7 +36,7 @@ class Log(Base):
     __tablename__ = "logs"
 
     link = Column(String, primary_key=True)
-    guild_id = Column(Integer)
+    guild_id = Column(Integer, primary_key=True)
     fight_name = Column(String)
     duration = Column(Interval)
     date_time = Column(DateTime)
@@ -123,7 +123,7 @@ class Config(Base):
 
 async def add_log(log: str, guild_id: int):
     # Check if log already exists in the database
-    if (await db.execute(select(Log).filter_by(link=log))).first():
+    if (await db.execute(select(Log).filter_by(link=log).filter(Log.guild_id == guild_id))).first():
         return f"{log} | Already in Database"
 
     # Get json data
