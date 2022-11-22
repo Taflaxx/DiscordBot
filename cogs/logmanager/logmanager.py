@@ -733,10 +733,9 @@ class LogManager(commands.Cog, name="LogManager"):
                     # Convert query output to array for pandas
                     log_list = []
                     for q in query:
-                        data.append([q[0], q[1], mechanic_map[0].name])
+                        data.append([q[0], q[1], mechanic_map[0].description])
                         log_list.append(q[0])
-                    # Add buff description to embed
-                    description = mechanic_map[0].name
+
                     # Get all logs where mechanic was not triggered and add them with the amount 0 to the data
                     statement = select(Log.date_time).filter(Log.guild_id == interaction.guild_id)\
                         .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
@@ -744,7 +743,7 @@ class LogManager(commands.Cog, name="LogManager"):
                     for log in log_query:
                         if log[0] not in log_list:
                             data.append([log[0], 0, mechanic_map[0].description])
-                    embed.add_field(name=f"**{mechanic_map[0].description}:**", value=description, inline=False)
+                    embed.add_field(name=f"**{mechanic_map[0].description}:**", value=mechanic_map[0].name, inline=False)
 
             # Create dataframe from data
             df = pd.DataFrame(data, columns=["Date", "Amount", "Mechanic"])
