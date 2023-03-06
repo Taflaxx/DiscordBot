@@ -147,7 +147,14 @@ async def add_log(log: str, guild_id: int):
 
     # Check if language is supported
     if not data["language"] in dicts.translate_to_english.keys():
-        return f"{log} | Language error"
+        # Try to detect language manually (in case language is "Unknown")
+        for language in dicts.translate_to_english.keys():
+            if data["fightName"].replace(" CM", "") in dicts.translate_to_english[language]:
+                data["language"] = language
+                break
+        else:
+            return f"{log} | Language error"
+
     # # Check if boss is supported
     if data["fightName"].replace(" CM", "") in dicts.translate_to_english[data["language"]].keys():
         log_db.fight_name = dicts.translate_to_english[data["language"]][data["fightName"].replace(" CM", "")]
