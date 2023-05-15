@@ -260,7 +260,10 @@ async def add_log(log: str, guild_id: int):
         if not (await db.execute(select(BuffMap.id).filter(BuffMap.id == buff_map[1:]))).first():
             buff_map_db = BuffMap(id=buff_map[1:])
             buff_map_db.name = data["buffMap"][buff_map]["name"]
-            buff_map_db.icon = data["buffMap"][buff_map]["icon"]
+            if "icon" in data["buffMap"][buff_map]:
+                buff_map_db.icon = data["buffMap"][buff_map]["icon"]
+            else:
+                buff_map_db.icon = ""
             buff_map_db.stacking = data["buffMap"][buff_map]["stacking"]
             if "descriptions" in data["buffMap"][buff_map]:
                 description = ""
