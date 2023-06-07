@@ -5,7 +5,7 @@ import os
 import csv
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
-from sqlalchemy import func, column, select, update
+from sqlalchemy import func, column, select, update, delete
 from sqlalchemy.orm import selectinload
 import pandas as pd
 import difflib
@@ -796,6 +796,20 @@ class LogManager(commands.Cog, name="LogManager"):
 
         await db.commit()
         await interaction.followup.send(content=response, ephemeral=True)
+
+    @app_commands.guild_only
+    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.command(name="delete_all", description="Deletes all logs [Admin only]")
+    async def delete_all_logs(self, interaction: Interaction) -> None:
+        amount = (await db.execute(select(func.count()).filter(Log.guild_id == interaction.guild_id))).scalar()
+        await interaction.response.send_message(content=f"Are you sure you want to delete all {amount} logs?",
+                                                ephemeral=True, view=ConfirmationView(self._delete_all_logs))
+
+    async def _delete_all_logs(self, interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await db.execute(delete(Log).filter(Log.guild_id == interaction.guild_id))
+        await db.commit()
+        await interaction.followup.send(content="All logs deleted", ephemeral=True)
 
     @app_commands.command(name="reindex", description="Reindex the Database")
     @app_commands.guilds(688413515366531139)
