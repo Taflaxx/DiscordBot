@@ -807,7 +807,9 @@ class LogManager(commands.Cog, name="LogManager"):
 
     async def _delete_all_logs(self, interaction: Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
-        await db.execute(delete(Log).filter(Log.guild_id == interaction.guild_id))
+        logs = (await db.execute(select(Log).filter(Log.guild_id == interaction.guild_id))).scalars()
+        for log in logs:
+            await db.delete(log)
         await db.commit()
         await interaction.followup.send(content="All logs deleted", ephemeral=True)
 
