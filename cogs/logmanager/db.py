@@ -193,7 +193,7 @@ async def add_log(log: str, guild_id: int):
         if log_db.fight_name.startswith("Dhuum"):
             # Special case for Dhuum to ignore the long pre-event
             # Only include "Dhuum Fight"
-            player_db.dps = player["dpsTargets"][0][3]["dps"]
+            player_db.dps = get_dps_from_targets(data, player, ["Dhuum"], 3)
         elif log_db.fight_name.startswith("Twin Largos"):  # Because Twin Largos is 2 bosses
             targets = ["Nikare", "Kenut"]
             player_db.dps = get_dps_from_targets(data, player, targets)
@@ -205,7 +205,7 @@ async def add_log(log: str, guild_id: int):
                        "The MordremothVoid", "The ZhaitanVoid", "The SooWonVoid"]
             player_db.dps = get_dps_from_targets(data, player, targets)
         else:
-            player_db.dps = player["dpsTargets"][0][0]["dps"]
+            player_db.dps = get_dps_from_targets(data, player, log_db.fight_name.replace(" CM", ""))
 
         # Add breakbar
         if "breakbarDamage" in player["dpsAll"][0]:
@@ -352,7 +352,7 @@ async def get_player_stats(player_stat, min_appearances=50):
     return stats, averages
 
 
-def get_dps_from_targets(log, player, targets):
+def get_dps_from_targets(log, player, targets, phase = 0):
     # Get IDs of the targets
     ids = []
     for idx, target in enumerate(log["targets"]):
@@ -361,5 +361,5 @@ def get_dps_from_targets(log, player, targets):
     # Get the dps dealt to the targets
     dps = 0
     for id in ids:
-        dps += player["dpsTargets"][id][0]["dps"]
+        dps += player["dpsTargets"][id][phase]["dps"]
     return dps
