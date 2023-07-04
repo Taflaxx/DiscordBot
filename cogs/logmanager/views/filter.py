@@ -163,7 +163,7 @@ def create_log_embed(query, order, start: int = 0, end: int = 10):
     val = ""
     for i in range(start, min(end, len(query))):
         row = query[i]
-        val += f"{i + 1}. [{row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
+        val += f"{i + 1}: [{row.log.fight_name}:]({row.log.link})\n{row.character} - {row.profession}\n" \
                f"DPS: {row.dps}\nDamage taken: {row.damage}\n\n"
         # Split into a new field every 5 logs because of character limits
         if (i + 1) % 5 == 0:
