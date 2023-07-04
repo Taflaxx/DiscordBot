@@ -204,6 +204,8 @@ async def add_log(log: str, guild_id: int):
             targets = ["The JormagVoid", "The PrimordusVoid", "The KralkatorrikVoid",
                        "The MordremothVoid", "The ZhaitanVoid", "The SooWonVoid"]
             player_db.dps = get_dps_from_targets(data, player, targets)
+        elif log_db.fight_name.startswith("Cairn"):
+            player_db.dps = get_dps_from_targets(data, player, ["Cairn the Indomitable"])
         else:
             player_db.dps = get_dps_from_targets(data, player, log_db.fight_name.replace(" CM", ""))
 
