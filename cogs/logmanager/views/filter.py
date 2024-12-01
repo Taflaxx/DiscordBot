@@ -1,10 +1,9 @@
 import math
+
 import discord
 from discord import Embed
+
 from cogs.logmanager.db import *
-from cogs.logmanager.dicts import professions, bosses, boons
-import itertools
-from sqlalchemy.orm import selectinload
 
 
 class SimpleDropdown(discord.ui.Select):
@@ -36,126 +35,6 @@ order_dict = {"Target DPS": Player.dps.desc(),
               "Damage taken": Player.damage.desc(),
               "Date": Log.date_time.desc(),
               "Duration": Log.duration.asc()}
-
-
-class LogFilterView(discord.ui.View):
-    def __init__(self, emboldened: bool = False):
-        super().__init__()
-        self.emboldened = emboldened
-
-        self.nameModal = NameFilter()
-        self.boonModal = BoonFilter()
-
-        # Adds the dropdowns to our view object
-        self.bosses = EmojiDropdown(dict(list(bosses.items())[:22]), "Select a Boss", 0, 22) # TODO: fix limit
-        self.add_item(self.bosses)
-
-        # Since limit of dropdown is 25 options: professions are split into 2 dropdowns
-        self.professions_1 = EmojiDropdown(dict(itertools.islice(professions.items(), 0, 24)), "Select a Profession (Heavy, Medium)", 0, 24)
-        self.professions_2 = EmojiDropdown(dict(itertools.islice(professions.items(), 24, 36)), "Select a Profession (Light)", 0, 12)
-        self.add_item(self.professions_1)
-        self.add_item(self.professions_2)
-
-        # Order dropdown
-        self.order = SimpleDropdown(order_dict.keys(), "Order logs by...", 1, 1)
-        self.add_item(self.order)
-
-    @discord.ui.button(label="Name Filter", style=discord.ButtonStyle.gray, row=4)
-    async def name(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(self.nameModal)
-
-    @discord.ui.button(label="Boons Generated", style=discord.ButtonStyle.gray, row=4)
-    async def boons(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(self.boonModal)
-
-    @discord.ui.button(label="Search", style=discord.ButtonStyle.green, row=4)
-    async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Get values
-        selected_bosses: [str] = self.bosses.values
-        selected_professions: [str] = self.professions_1.values
-        selected_professions.extend(self.professions_2.values)
-
-        # Default to Player.dps if nothing was selected
-        selected_order = "Target DPS"
-        if self.order.values:
-            selected_order = self.order.values[0]
-
-        # Add CM version of bosses
-        for boss in selected_bosses.copy():  # Use a copy of the list to prevent infinite loop
-            selected_bosses.append(f"{boss} CM")
-
-        # Create a string to show the selected values
-        filter_str = "__**Search Settings:**__\n"
-
-        # Query DB
-        statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id).options(selectinload(Player.log))
-        if not self.emboldened:
-            statement = statement.filter(Log.emboldened == 0)
-        if selected_bosses:
-            statement = statement.filter(Log.fight_name.in_(selected_bosses))
-            filter_str += f"**Bosses:** {', '.join(selected_bosses[:len(selected_bosses) // 2])}\n"
-        if selected_professions:
-            statement = statement.filter(Player.profession.in_(selected_professions))
-            filter_str += f"**Professions:** {', '.join(selected_professions)}\n"
-        if self.nameModal.account.value:
-            statement = statement.filter(Player.account.ilike(f"%{self.nameModal.account.value}%"))
-            filter_str += f"**Account:** {self.nameModal.account.value}\n"
-        if self.nameModal.character.value:
-            statement = statement.filter(Player.character.ilike(f"%{self.nameModal.character.value}%"))
-            filter_str += f"**Character:** {self.nameModal.character.value}\n"
-        if self.boonModal.boon.values:
-            val = 60
-            if self.boonModal.value.value.isdigit():
-                if 0 <= int(self.boonModal.value.value) <= 100:
-                    val = int(self.boonModal.value.value)
-            buff_id = (await db.execute((BuffMap).filter(BuffMap.name.ilike(f"{self.boonModal.boon.values[0]}")))).first().id
-            statement = statement.join(BuffGeneration).filter((BuffGeneration.buff == buff_id) & (BuffGeneration.uptime >= val))
-            filter_str += f"**Minimum Boon Generation:** {val}% {self.boonModal.boon.values[0]}\n"
-
-        statement = statement.order_by(order_dict[selected_order])
-        filter_str += f"**Ordered by:** {selected_order}\n"
-
-        query = (await db.execute(statement)).scalars().all()
-        if len(query) == 0:
-            # Send ephemeral message if no logs were found
-            await interaction.response.send_message(content="**:x: No logs found**\n" + filter_str, ephemeral=True)
-            return
-
-        # defer to prevent timeout
-        await interaction.response.defer()
-
-        embed = create_log_embed(query, selected_order)
-
-        # Create paginated log view
-        view = LogPaginationView(query, selected_order)
-        view.message = await interaction.channel.send(content=f"{interaction.user.mention}\n{filter_str}", embed=embed, view=view)
-        self.stop()
-
-
-class NameFilter(discord.ui.Modal, title="Name Settings"):
-    account = discord.ui.TextInput(label="Account Name", required=False)
-    character = discord.ui.TextInput(label="Character Name", required=False)
-
-    def __init__(self):
-        super().__init__()
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-
-        # Show old values as placeholder if modal is opened again
-        self.account.placeholder = self.account.value
-        self.character.placeholder = self.character.value
-
-
-class BoonFilter(discord.ui.Modal, title="Boon Settings (Generation Self)"):
-    boon = EmojiDropdown(boons, "Select a Boon")
-    value = discord.ui.TextInput(label="Minimum Generation (Default: 60)", required=False, placeholder="Number between 0 and 100")
-
-    def __init__(self):
-        super().__init__()
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer()
 
 
 def create_log_embed(query, order, start: int = 0, end: int = 10):

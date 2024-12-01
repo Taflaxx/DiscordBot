@@ -4,7 +4,7 @@ import logging
 import os
 import csv
 
-from cogs.logmanager.autocomplete import bosses_autocomplete
+from cogs.logmanager.autocomplete import bosses_autocomplete, professions_autocomplete
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
 from sqlalchemy import func, column, select, update, delete
@@ -12,14 +12,13 @@ from sqlalchemy.orm import selectinload
 import pandas as pd
 import difflib
 from datetime import datetime, timezone
-from cogs.logmanager.views.filter import LogFilterView, create_log_embed
+from cogs.logmanager.views.filter import create_log_embed, LogPaginationView, order_dict
 from cogs.logmanager.views.confirmation import ConfirmationView
 import cogs.logmanager.choices as choices
 from cogs.logmanager.dicts import bosses
 import typing
 import traceback
 import sys
-
 
 # Set up logging
 logger = logging.getLogger("sqlalchemy.engine")
@@ -113,13 +112,14 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.checks.cooldown(1, 600, key=lambda i: i.guild_id)
-    @app_commands.checks.bot_has_permissions(send_messages=True) # Need send_messages perm here to update progress
+    @app_commands.checks.bot_has_permissions(send_messages=True)  # Need send_messages perm here to update progress
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(name="history", description="Search a Discord channel for logs")
     async def parse_channel(self, interaction: Interaction, channel: TextChannel, limit: typing.Optional[int] = None):
         # Check if bot can view the given channel
         if not channel.permissions_for(channel.guild.me).read_messages:
-            await interaction.response.send_message(content="I don't have permissions to view that channel", ephemeral=True)
+            await interaction.response.send_message(content="I don't have permissions to view that channel",
+                                                    ephemeral=True)
             return
 
         # Get messages
@@ -159,8 +159,8 @@ class LogManager(commands.Cog, name="LogManager"):
                 errors += 1
 
             # Periodically update user on progress
-            if (idx+1) % 10 == 0:
-                await response_message.edit(content=f"{response}\nParsed {idx+1}/{len(logs)} logs.")
+            if (idx + 1) % 10 == 0:
+                await response_message.edit(content=f"{response}\nParsed {idx + 1}/{len(logs)} logs.")
                 await db.commit()
 
         await response_message.edit(content=f"{response}\nParsed {len(logs)}/{len(logs)} logs.\n"
@@ -186,13 +186,15 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.command(name="weekly", description="Add weekly clear logs from the configured channel")
     async def weekly(self, interaction: Interaction):
         # Get configured channel
-        channel = (await db.execute(select(Config.log_channel_id).filter(Config.guild_id == interaction.guild_id))).scalar()
+        channel = (
+            await db.execute(select(Config.log_channel_id).filter(Config.guild_id == interaction.guild_id))).scalar()
         channel = self.bot.get_channel(channel)
         # Return if channel has not been configured
         if not channel:
-            await interaction.response.send_message(content="Please configure the log channel before using this command\n"
-                                                            "Admins can use `/config weekly` to set it",
-                                                    ephemeral=True)
+            await interaction.response.send_message(
+                content="Please configure the log channel before using this command\n"
+                        "Admins can use `/config weekly` to set it",
+                ephemeral=True)
             return
 
         # Load latest message
@@ -244,9 +246,9 @@ class LogManager(commands.Cog, name="LogManager"):
 
             # Get top logs from boss
             boss = log_db.fight_name
-            statement = select(Log).filter(Log.guild_id == interaction.guild_id)\
-                .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))\
-                .filter(Log.emboldened == 0)\
+            statement = select(Log).filter(Log.guild_id == interaction.guild_id) \
+                .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm")) \
+                .filter(Log.emboldened == 0) \
                 .order_by(Log.duration.asc()).limit(3)
             query_fastest = (await db.execute(statement)).scalars().all()
 
@@ -256,26 +258,27 @@ class LogManager(commands.Cog, name="LogManager"):
                     if query_fastest[i].link == log:
                         if i == 0:
                             # Different text and emoji for first place
-                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {strfdelta(log_db.duration)} " \
+                            records += f"{rank_emojis[i + 1]} **{log_db.fight_name}:** {strfdelta(log_db.duration)} " \
                                        f"(Old Record: {strfdelta(query_fastest[1].duration)})\n"
                         else:
-                            records += f"{rank_emojis[i+1]} **{log_db.fight_name}:** {strfdelta(log_db.duration)} " \
+                            records += f"{rank_emojis[i + 1]} **{log_db.fight_name}:** {strfdelta(log_db.duration)} " \
                                        f"(Record: {strfdelta(query_fastest[0].duration)})\n"
                         break
 
             # Check for new DPS records
-            log_db = (await db.execute(select(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()))).scalars().all()
+            log_db = (await db.execute(
+                select(Player).join(Log).filter(Log.link.ilike(log)).order_by(Player.dps.desc()))).scalars().all()
             # Get highest DPS players
-            statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id)\
-                .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm"))\
-                .filter(Log.emboldened == 0)\
+            statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id) \
+                .filter(Log.fight_name.ilike(boss) | Log.fight_name.ilike(f"{boss} cm")) \
+                .filter(Log.emboldened == 0) \
                 .order_by(Player.dps.desc()).limit(3)
             query_dps = (await db.execute(statement)).scalars().all()
             if len(query_fastest) > 1:
                 for player in log_db:
                     for i in range(0, len(query_dps)):
                         if query_dps[i] == player:
-                            records_dps += f"{rank_emojis[i+1]} **{boss}:** {player.dps} DPS by " \
+                            records_dps += f"{rank_emojis[i + 1]} **{boss}:** {player.dps} DPS by " \
                                            f"{player.character} - {player.profession}\n"
                             break
 
@@ -283,8 +286,8 @@ class LogManager(commands.Cog, name="LogManager"):
         fgs_stolen = {}
         for log in added_logs:
             # Get log from db
-            statement = select(BuffUptimes).join(Player).join(Log)\
-                .filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792))\
+            statement = select(BuffUptimes).join(Player).join(Log) \
+                .filter(Log.link.ilike(log)).filter(BuffUptimes.buff.ilike(15792)) \
                 .options(selectinload(BuffUptimes.player).selectinload(Player.log))
             fgs_logs = (await db.execute(statement)).scalars().all()
             for player in fgs_logs:
@@ -342,13 +345,15 @@ class LogManager(commands.Cog, name="LogManager"):
     async def config_weekly(self, interaction: Interaction, channel: TextChannel) -> None:
         # Check if bot can view the given channel
         if not channel.permissions_for(channel.guild.me).read_messages:
-            await interaction.response.send_message(content="I don't have permissions to view that channel", ephemeral=True)
+            await interaction.response.send_message(content="I don't have permissions to view that channel",
+                                                    ephemeral=True)
             return
 
         # Add to DB
         config = (await db.execute(select(Config).filter(Config.guild_id == interaction.guild_id))).first()
         if config:
-            await db.execute(update(Config).filter(Config.guild_id == interaction.guild_id).values(log_channel_id=channel.id))
+            await db.execute(
+                update(Config).filter(Config.guild_id == interaction.guild_id).values(log_channel_id=channel.id))
         else:
             config = Config(guild_id=interaction.guild_id, log_channel_id=channel.id)
             db.add(config)
@@ -371,7 +376,8 @@ class LogManager(commands.Cog, name="LogManager"):
         embed = Embed(title="Log Stats", color=0x0099ff)
 
         # Get total amount of logs in db for this guild
-        total_logs = (await db.execute(select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id))).scalar()
+        total_logs = (
+            await db.execute(select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id))).scalar()
         embed.add_field(name="Logs:", value=total_logs)
 
         # If no logs exist in db return
@@ -406,9 +412,11 @@ class LogManager(commands.Cog, name="LogManager"):
         total_players, total_dps, total_damage, total_downs, total_deaths = (await db.execute(statement)).first()
 
         # Add embeds
-        embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
-        embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
-        embed.add_field(name="\u200b", value="\u200b")   # Add invisible field for better formatting
+        embed.add_field(name="Average DPS:",
+                        value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
+        embed.add_field(name="Average damage:",
+                        value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
+        embed.add_field(name="\u200b", value="\u200b")  # Add invisible field for better formatting
         embed.add_field(name="Downs:", value=f"Total: {total_downs}\nAverage: {round(total_downs / total_logs, 1)}")
         embed.add_field(name="Deaths:", value=f"Total: {total_deaths}\nAverage: {round(total_deaths / total_logs, 1)}")
 
@@ -417,13 +425,13 @@ class LogManager(commands.Cog, name="LogManager"):
     @app_commands.guild_only
     @app_commands.command(name="boss", description="Show boss specific stats")
     @app_commands.autocomplete(boss=bosses_autocomplete)
-    async def stats_boss(self, interaction: Interaction,  boss: str) -> None:
+    async def stats_boss(self, interaction: Interaction, boss: str) -> None:
         # Defer to prevent interaction timeout
         await interaction.response.defer()
 
         # Get all logs of the selected boss
-        statement = select(Log).join(Player).filter(Log.guild_id == interaction.guild_id)\
-            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))\
+        statement = select(Log).join(Player).filter(Log.guild_id == interaction.guild_id) \
+            .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")) \
             .distinct(Log.link)
         total_logs = len((await db.execute(statement)).all())
         if total_logs == 0:
@@ -440,27 +448,31 @@ class LogManager(commands.Cog, name="LogManager"):
 
         # Latest kill
         latest_kill = (await db.execute(statement.order_by(Log.date_time.desc()))).scalar()
-        embed.add_field(name="Latest kill:", value=f"[{latest_kill.date_time.strftime('%B %e, %Y')}]({latest_kill.link})")
+        embed.add_field(name="Latest kill:",
+                        value=f"[{latest_kill.date_time.strftime('%B %e, %Y')}]({latest_kill.link})")
 
         # Total kills
         embed.add_field(name="Number of kills:", value=total_logs)
 
         # Fastest kills
-        query_fastest = (await db.execute(statement.filter(Log.emboldened == 0).order_by(Log.duration.asc()))).scalars().all()
+        query_fastest = (
+            await db.execute(statement.filter(Log.emboldened == 0).order_by(Log.duration.asc()))).scalars().all()
         val = ""
         for i in range(0, min(5, len(query_fastest))):
             val += f"[{strfdelta(query_fastest[i].duration)} ({query_fastest[i].date_time.strftime('%B %e, %Y')})]({query_fastest[i].link})\n"
         embed.add_field(name="Fastest kills:", value=val, inline=False)
 
         # Average DPS and damage taken
-        statement = select(func.count(Player.id), func.sum(Player.dps), func.sum(Player.damage)).join(Log)\
+        statement = select(func.count(Player.id), func.sum(Player.dps), func.sum(Player.damage)).join(Log) \
             .filter(Log.guild_id == interaction.guild_id) \
             .filter(Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))
         total_players, total_dps, total_damage = (await db.execute(statement)).first()
 
         # Add embeds
-        embed.add_field(name="Average DPS:", value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
-        embed.add_field(name="Average damage:", value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
+        embed.add_field(name="Average DPS:",
+                        value=f"Group: {round(total_dps / total_logs)}\nPlayer: {round(total_dps / total_players)}")
+        embed.add_field(name="Average damage:",
+                        value=f"Group: {round(total_damage / total_logs)}\nPlayer: {round(total_damage / total_players)}")
 
         # Add top DPS
         top_dps = (await db.execute(
@@ -510,14 +522,15 @@ class LogManager(commands.Cog, name="LogManager"):
         emoji = [":one:", ":two:", ":three:", ":four:", ":five:"]
 
         # Minimum amount of logs per player
-        limit = min(db.query(Log.link).count()/2, 50)
+        limit = min(db.query(Log.link).count() / 2, 50)
 
         # Damage
         _, averages = await get_player_stats(Player.damage, limit)
         val = ""
         for i in range(0, 5):
             val += f"{emoji[i]} **{averages[i][0]}:** {int(averages[i][1])}\n"
-        embed.add_field(name=f"{self.bot.get_emoji(874013315901317140)} __Average damage taken:__", value=val, inline=False)
+        embed.add_field(name=f"{self.bot.get_emoji(874013315901317140)} __Average damage taken:__", value=val,
+                        inline=False)
 
         # Downs
         downs, averages = await get_player_stats(Player.downs, limit)
@@ -553,7 +566,7 @@ class LogManager(commands.Cog, name="LogManager"):
         await interaction.response.defer()
 
         # Check if logs for this boss exists in db
-        statement = select(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+        statement = select(Log.fight_name).filter(Log.guild_id == interaction.guild_id) \
             .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
         boss_db = (await db.execute(statement)).first()
         if not boss_db:
@@ -653,7 +666,7 @@ class LogManager(commands.Cog, name="LogManager"):
         await interaction.response.defer()
 
         # Check if logs for this boss exists in db
-        statement = select(Log.fight_name).filter(Log.guild_id == interaction.guild_id)\
+        statement = select(Log.fight_name).filter(Log.guild_id == interaction.guild_id) \
             .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
         boss_db = (await db.execute(statement)).first()
         if not boss_db:
@@ -666,25 +679,27 @@ class LogManager(commands.Cog, name="LogManager"):
         # If no mechanic was specified
         if not mechanics:
             # List of all mechs on the boss
-            statement = select(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics)\
-                .filter(Log.guild_id == interaction.guild_id).distinct(Mechanic.description)\
+            statement = select(Mechanic.description).join(Player, Log.players).join(Mechanic, Player.mechanics) \
+                .filter(Log.guild_id == interaction.guild_id).distinct(Mechanic.description) \
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
             mechs = (await db.execute(statement)).all()
 
             # Number of logs of the specified boss
-            statement = select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id)\
+            statement = select(func.count(Log.link)).filter(Log.guild_id == interaction.guild_id) \
                 .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
             fight_number = (await db.execute(statement)).scalar()
 
             for mech in mechs:
                 # Total amount of mechanic triggers
-                statement = select(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount))\
-                     .join(Player, Log.players).join(Mechanic, Player.mechanics)\
-                     .filter(Log.guild_id == interaction.guild_id)\
-                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
-                     .filter(Mechanic.description.ilike(f"{mech[0]}"))
+                statement = select(Log.fight_name, Mechanic.description, func.sum(Mechanic.amount)) \
+                    .join(Player, Log.players).join(Mechanic, Player.mechanics) \
+                    .filter(Log.guild_id == interaction.guild_id) \
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
+                    .filter(Mechanic.description.ilike(f"{mech[0]}"))
                 total_query = (await db.execute(statement)).all()
-                embed.add_field(name=f"__{mech[0]}:__", value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2]/fight_number, 2)}", inline=False)
+                embed.add_field(name=f"__{mech[0]}:__",
+                                value=f"Total: {total_query[0][2]}\n Average: {round(total_query[0][2] / fight_number, 2)}",
+                                inline=False)
             await interaction.followup.send(embed=embed)
 
         else:
@@ -695,16 +710,17 @@ class LogManager(commands.Cog, name="LogManager"):
             data = []
             for mechanic in mechanics:
                 # Check for valid Mechanic
-                statement = select(Mechanic)\
-                    .join(Player, Log.players)\
-                    .join(Mechanic, Player.mechanics)\
-                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))\
+                statement = select(Mechanic) \
+                    .join(Player, Log.players) \
+                    .join(Mechanic, Player.mechanics) \
+                    .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
                     .filter(Mechanic.description.ilike(f"%{mechanic}%"))
                 mechanic_map = (await db.execute(statement)).scalars().all()
                 closest = []
                 # If no Mechanic was found add en embed message and skip to next item
                 if len(mechanic_map) == 0:
-                    embed.add_field(name="**Error**", value=f"Mechanic \"{mechanic}\" on boss \"{boss}\" was not found .", inline=False)
+                    embed.add_field(name="**Error**",
+                                    value=f"Mechanic \"{mechanic}\" on boss \"{boss}\" was not found .", inline=False)
                     continue
                 # If more than 1 match select the closest
                 elif len(mechanic_map) > 1:
@@ -720,14 +736,15 @@ class LogManager(commands.Cog, name="LogManager"):
                                         inline=False)
                         continue
                     # Assign closest match
-                    mechanic_map = (await db.execute(select(Mechanic).filter(Mechanic.description == closest[0]))).scalars().all()
+                    mechanic_map = (
+                        await db.execute(select(Mechanic).filter(Mechanic.description == closest[0]))).scalars().all()
                     closest.remove(closest[0])
 
                 # Join Tables, filter by boss and mechanic, group by Log.link
-                statement = select(Log.date_time, func.sum(Mechanic.amount))\
-                    .join(Player, Log.players)\
+                statement = select(Log.date_time, func.sum(Mechanic.amount)) \
+                    .join(Player, Log.players) \
                     .join(Mechanic, Player.mechanics) \
-                    .filter(Log.guild_id == interaction.guild_id)                    \
+                    .filter(Log.guild_id == interaction.guild_id) \
                     .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm"))) \
                     .filter(Mechanic.description == mechanic_map[0].description).group_by(Log.link)
                 query = (await db.execute(statement)).all()
@@ -742,19 +759,21 @@ class LogManager(commands.Cog, name="LogManager"):
                         log_list.append(q[0])
 
                     # Get all logs where mechanic was not triggered and add them with the amount 0 to the data
-                    statement = select(Log.date_time).filter(Log.guild_id == interaction.guild_id)\
+                    statement = select(Log.date_time).filter(Log.guild_id == interaction.guild_id) \
                         .filter((Log.fight_name.ilike(f"%{boss}") | Log.fight_name.ilike(f"%{boss} cm")))
                     log_query = (await db.execute(statement)).all()
                     for log in log_query:
                         if log[0] not in log_list:
                             data.append([log[0], 0, mechanic_map[0].description])
-                    embed.add_field(name=f"**{mechanic_map[0].description}:**", value=mechanic_map[0].name, inline=False)
+                    embed.add_field(name=f"**{mechanic_map[0].description}:**", value=mechanic_map[0].name,
+                                    inline=False)
 
             # Create dataframe from data
             df = pd.DataFrame(data, columns=["Date", "Amount", "Mechanic"])
             # Update embed if there was only 1 valid buff selected
             if len(df["Mechanic"].unique()) == 1:
-                mechanic_map = (await db.execute(select(Mechanic).filter(Mechanic.description == (df["Mechanic"][0])))).scalar()
+                mechanic_map = (
+                    await db.execute(select(Mechanic).filter(Mechanic.description == (df["Mechanic"][0])))).scalar()
                 embed.title = f"{mechanic_map.description} on {boss}"
             # Check if dataframe actually contains any data
             if df.empty:
@@ -770,11 +789,63 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.command(name="logs", description="Search for logs")
-    @app_commands.describe(emboldened="Include emboldened logs? (Default: False)")
-    async def search_logs(self, interaction: Interaction, emboldened: typing.Optional[bool] = False) -> None:
-        view = LogFilterView(emboldened)
+    @app_commands.describe(boss="Name of the boss", profession="Profession of the player",
+                           boon="Generated Boon (minimum 60% uptime)", character="Name of the character",
+                           account="Name of the account", order_by="What to order the logs by (Default: Target DPS)",
+                           emboldened="Include emboldened logs? (Default: False)")
+    @app_commands.autocomplete(boss=bosses_autocomplete)
+    @app_commands.autocomplete(profession=professions_autocomplete)
+    async def search_logs(self, interaction: Interaction, boss: typing.Optional[str], profession: typing.Optional[str],
+                          character: typing.Optional[str], account: typing.Optional[str], boon: typing.Optional[str],
+                          order_by: typing.Optional[choices.log_order] = "Target DPS",
+                          emboldened: typing.Optional[bool] = False) -> None:
 
-        await interaction.response.send_message(view=view, ephemeral=True)
+        # Create a string to show the selected values
+        filter_str = "__**Search Settings:**__\n"
+
+        # Query DB
+        statement = select(Player).join(Log).filter(Log.guild_id == interaction.guild_id).options(
+            selectinload(Player.log))
+        if not emboldened:
+            statement = statement.filter(Log.emboldened == 0)
+        if boss:
+            bosses = [boss, boss + " CM"]
+            statement = statement.filter(Log.fight_name.in_(bosses))
+            filter_str += f"**Boss:** {boss}\n"
+        if profession:
+            statement = statement.filter(Player.profession.ilike(f"%{profession}%"))
+            filter_str += f"**Profession:** {profession}\n"
+        if account:
+            statement = statement.filter(Player.account.ilike(f"%{account}%"))
+            filter_str += f"**Account:** {account}\n"
+        if character:
+            statement = statement.filter(Player.character.ilike(f"%{character}%"))
+            filter_str += f"**Character:** {character}\n"
+        if boon:
+            buff_id = (
+                await db.execute((BuffMap).filter(BuffMap.name.ilike(f"{boon}")))).first().id
+            statement = statement.join(BuffGeneration).filter(
+                (BuffGeneration.buff == buff_id) & (BuffGeneration.uptime >= 60))
+            filter_str += f"**Minimum Boon Generation:** 60% {boon}\n"
+
+        statement = statement.order_by(order_dict[order_by])
+        filter_str += f"**Ordered by:** {order_by}\n"
+
+        query = (await db.execute(statement)).scalars().all()
+        if len(query) == 0:
+            # Send ephemeral message if no logs were found
+            await interaction.response.send_message(content="**:x: No logs found**\n" + filter_str, ephemeral=True)
+            return
+
+        # defer to prevent timeout
+        await interaction.response.defer()
+
+        embed = create_log_embed(query, order_by)
+
+        # Create paginated log view
+        view = LogPaginationView(query, order_by)
+        view.message = await interaction.channel.send(content=f"{interaction.user.mention}\n{filter_str}", embed=embed,
+                                                      view=view)
 
     @app_commands.guild_only
     @app_commands.checks.has_permissions(administrator=True)
@@ -791,7 +862,8 @@ class LogManager(commands.Cog, name="LogManager"):
         response = ""
         for log in logs:
             # Find log in DB
-            log_db = (await db.execute(select(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.link == log))).scalar()
+            log_db = (await db.execute(
+                select(Log).filter(Log.guild_id == interaction.guild_id).filter(Log.link == log))).scalar()
             # Check if log exists in db
             if log_db:
                 await db.delete(log_db)
