@@ -3,6 +3,8 @@ from discord import Embed, File, TextChannel, app_commands, Interaction
 import logging
 import os
 import csv
+
+from cogs.logmanager.autocomplete import bosses_autocomplete
 from cogs.logmanager.utils import *
 from cogs.logmanager.db import *
 from sqlalchemy import func, column, select, update, delete
@@ -414,7 +416,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.command(name="boss", description="Show boss specific stats")
-    async def stats_boss(self, interaction: Interaction,  boss: choices.bosses) -> None:
+    @app_commands.autocomplete(boss=bosses_autocomplete)
+    async def stats_boss(self, interaction: Interaction,  boss: str) -> None:
         # Defer to prevent interaction timeout
         await interaction.response.defer()
 
@@ -544,7 +547,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.command(name="buffs", description="Show stats about specific buffs at a boss")
-    async def buffs(self, interaction: Interaction, boss: choices.bosses, buffs: typing.Optional[str]) -> None:
+    @app_commands.autocomplete(boss=bosses_autocomplete)
+    async def buffs(self, interaction: Interaction, boss: str, buffs: typing.Optional[str]) -> None:
         # Defer to prevent interaction timeout
         await interaction.response.defer()
 
@@ -643,7 +647,8 @@ class LogManager(commands.Cog, name="LogManager"):
 
     @app_commands.guild_only
     @app_commands.command(name="mechs", description="Show mechanic stats")
-    async def mechs(self, interaction: Interaction, boss: choices.bosses, mechanics: typing.Optional[str]) -> None:
+    @app_commands.autocomplete(boss=bosses_autocomplete)
+    async def mechs(self, interaction: Interaction, boss: str, mechanics: typing.Optional[str]) -> None:
         # Defer to prevent interaction timeout
         await interaction.response.defer()
 

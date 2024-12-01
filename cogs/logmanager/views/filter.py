@@ -47,7 +47,7 @@ class LogFilterView(discord.ui.View):
         self.boonModal = BoonFilter()
 
         # Adds the dropdowns to our view object
-        self.bosses = EmojiDropdown(bosses, "Select a Boss", 0, len(bosses))
+        self.bosses = EmojiDropdown(dict(list(bosses.items())[:22]), "Select a Boss", 0, 22) # TODO: fix limit
         self.add_item(self.bosses)
 
         # Since limit of dropdown is 25 options: professions are split into 2 dropdowns

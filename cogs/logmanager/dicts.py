@@ -155,6 +155,17 @@ bosses = {
             "emoji": "7️⃣",
             "icon": "https://wiki.guildwars2.com/images/8/8b/Mini_Qadim_the_Peerless.png"},
 
+        # Wing 8
+        "Decima, the Stormsinger": {
+            "emoji": "8️⃣",
+            "icon": "https://wiki.guildwars2.com/images/9/9f/Mini_Sentient_Conduit.png"},
+        "Greer, the Blightbringer": {
+            "emoji": "8️⃣",
+            "icon": "https://wiki.guildwars2.com/images/f/fe/Mini_Rot_Strider.png"},
+        "Ura, the Steamshrieker": {
+            "emoji": "8️⃣",
+            "icon": "https://wiki.guildwars2.com/images/6/69/Mini_Ventshot.png"},
+
         # EoD Strikes
         "Captain Mai Trin": {
             "emoji": "<:strike:1027198472459391047>",
@@ -200,6 +211,9 @@ translate_to_english = {
             "Cardinal Sabir": "Cardinal Sabir",
             "Cardinal Adina": "Cardinal Adina",
             "Qadim the Peerless": "Qadim the Peerless",
+            "Decima, the Stormsinger": "Decima, the Stormsinger",
+            "Greer, the Blightbringer": "Greer, the Blightbringer",
+            "Ura, the Steamshrieker": "Ura, the Steamshrieker",
             # Strikes
             "Aetherblade Hideout": "Captain Mai Trin",
             "Ankka": "Ankka",
@@ -226,6 +240,9 @@ translate_to_english = {
             "Kardinal Sabir": "Cardinal Sabir",
             "Kardinal Adina": "Cardinal Adina",
             "Qadim der Unvergleichliche": "Qadim the Peerless",
+            "Decima, die Sturmsängerin": "Decima, the Stormsinger",
+            "Greer, der Pestilenzbringer": "Greer, the Blightbringer",
+            "Ura, the Steamshrieker": "Ura, the Steamshrieker",
             # Strikes
             "Aetherblade Hideout": "Captain Mai Trin",
             "Ankka": "Ankka",
@@ -253,6 +270,9 @@ translate_to_english = {
             "Cardinal Sabir": "Cardinal Sabir",
             "Cardinale Adina": "Cardinal Adina",
             "Qadim l'Inégalé": "Qadim the Peerless",
+            "Decima, l'antienne de la tempête": "Decima, the Stormsinger",
+            "Greer, le porte-fléau": "Greer, the Blightbringer",
+            "Ura, the Steamshrieker": "Ura, the Steamshrieker",
             # Strikes
             "Aetherblade Hideout": "Captain Mai Trin",
             "Ankka": "Ankka",
@@ -279,6 +299,9 @@ translate_to_english = {
             "Cardenal Sabir": "Cardinal Sabir",
             "Cardenal Adina": "Cardinal Adina",
             "Qadim el Simpar": "Qadim the Peerless",
+            "Decima, la Invocatormentas": "Decima, the Stormsinger",
+            "Greer, el Portarruina": "Greer, the Blightbringer",
+            "Ura, the Steamshrieker": "Ura, the Steamshrieker",
             # Strikes
             "Aetherblade Hideout": "Captain Mai Trin",
             "Ankka": "Ankka",
